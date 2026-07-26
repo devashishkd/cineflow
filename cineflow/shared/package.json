@@ -1,5 +1,9 @@
 {
   "name": "shared",
   "version": "1.0.0",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "ioredis": "^5.3.2",
+    "kafkajs": "^2.2.4"
+  }
 }
