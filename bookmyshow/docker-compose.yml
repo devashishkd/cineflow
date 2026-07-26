@@ -1,0 +1,166 @@
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────────────
+  # DATABASES (one per service — DB per service pattern)
+  # ─────────────────────────────────────────────────
+  postgres-user:
+    image: postgres:15-alpine
+    container_name: bms-postgres-user
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: user_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-user-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-movie:
+    image: postgres:15-alpine
+    container_name: bms-postgres-movie
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: movie_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-movie-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-booking:
+    image: postgres:15-alpine
+    container_name: bms-postgres-booking
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: booking_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-booking-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────
+  # PHASE 2: Redis — Uncomment when ready
+  # ─────────────────────────────────────────────────
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: bms-redis
+  #   restart: unless-stopped
+  #   ports:
+  #     - "6379:6379"
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 5
+
+  # ─────────────────────────────────────────────────
+  # PHASE 3: Kafka — Uncomment when ready
+  # ─────────────────────────────────────────────────
+  # zookeeper:
+  #   image: confluentinc/cp-zookeeper:7.4.0
+  #   container_name: bms-zookeeper
+  #   environment:
+  #     ZOOKEEPER_CLIENT_PORT: 2181
+  #     ZOOKEEPER_TICK_TIME: 2000
+
+  # kafka:
+  #   image: confluentinc/cp-kafka:7.4.0
+  #   container_name: bms-kafka
+  #   depends_on:
+  #     - zookeeper
+  #   ports:
+  #     - "9092:9092"
+  #   environment:
+  #     KAFKA_BROKER_ID: 1
+  #     KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+  #     KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+  #     KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  #     KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  # ─────────────────────────────────────────────────
+  # SERVICES
+  # ─────────────────────────────────────────────────
+  user-service:
+    build: ./services/user-service
+    container_name: bms-user-service
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DB_URL: postgresql://postgres:postgres@postgres-user:5432/user_db
+      JWT_SECRET: super_secret_jwt_key_change_in_production
+    depends_on:
+      postgres-user:
+        condition: service_healthy
+
+  movie-service:
+    build: ./services/movie-service
+    container_name: bms-movie-service
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      DB_URL: postgresql://postgres:postgres@postgres-movie:5432/movie_db
+    depends_on:
+      postgres-movie:
+        condition: service_healthy
+
+  booking-service:
+    build: ./services/booking-service
+    container_name: bms-booking-service
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      DB_URL: postgresql://postgres:postgres@postgres-booking:5432/booking_db
+      JWT_SECRET: super_secret_jwt_key_change_in_production
+      MOVIE_SERVICE_URL: http://movie-service:3002
+    depends_on:
+      postgres-booking:
+        condition: service_healthy
+      movie-service:
+        condition: service_started
+
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: bms-api-gateway
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      USER_SERVICE_URL: http://user-service:3001
+      MOVIE_SERVICE_URL: http://movie-service:3002
+      BOOKING_SERVICE_URL: http://booking-service:3003
+    depends_on:
+      - user-service
+      - movie-service
+      - booking-service
+
+volumes:
+  postgres-user-data:
+  postgres-movie-data:
+  postgres-booking-data:

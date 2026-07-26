@@ -1,0 +1,295 @@
+# Ticketo (BookMyShow Clone) - Project Progress Log
+
+## High-Level Design & Context
+- **Project Goal:** Ticket booking app for placements (Intermediate to Advanced level).
+- **Current Phase:** Building the backend first.
+- **Architecture:** Microservices architecture.
+- **Current Services:**
+  - `api-gateway`: Routes traffic to the correct microservice (`/api/auth`, `/api/movies`, `/api/shows`, `/api/bookings`).
+  - `user-service`: Handles user authentication and management.
+  - `movie-service`: Manages movies, theatres, shows, and seats.
+  - `booking-service`: Handles the booking flow (currently synchronous).
+
+## Progress
+**Completed (Phase 1):**
+- [x] API Gateway setup
+- [x] User Service setup
+- [x] Movie Service setup
+- [x] Booking Service setup
+
+**Pending / To Be Done (Phase 2 & Beyond):**
+- [ ] **Seat Locking:** Not implemented yet. (Needs to prevent race conditions during booking).
+- [ ] **Redis:** Needs to be added for caching and seat locking.
+- [ ] **Kafka:** Needs to be added for asynchronous messaging between services.
+- [ ] **Payment Service:** To handle payment processing.
+- [ ] **Notification Service:** To send booking confirmations (email/SMS) to users.
+# BookMyShow — Folder Structure
+### Node.js + JavaScript + Tailwind CSS
+
+---
+
+## 📁 Monorepo Layout
+
+```
+bookmyshow/
+│
+├── docker-compose.yml              ← Spins up ALL services + Postgres + Redis + Kafka
+├── .env.example                    ← Template for environment variables
+├── README.md
+│
+├── services/
+│   ├── api-gateway/                ← Entry point for all client requests
+│   ├── user-service/               ← Auth, Register, Login
+│   ├── movie-service/              ← Movies, Theatres, Shows, Seats
+│   ├── booking-service/            ← Seat lock, create booking
+│   ├── payment-service/            ← Mock payment processing
+│   └── notification-service/       ← Email/SMS after booking
+│
+├── frontend/                       ← React + Tailwind CSS
+│
+└── shared/                         ← Shared utilities (reused across services)
+    ├── kafka/                      ← Kafka producer/consumer helpers
+    ├── redis/                      ← Redis client setup
+    └── middleware/                 ← JWT verification middleware
+```
+
+---
+
+## 📁 Each Service — Same Structure (Consistent Pattern)
+
+Every service follows this exact same layout — makes it easy to explain and navigate.
+
+```
+services/user-service/
+│
+├── src/
+│   ├── config/
+│   │   └── db.js                   ← PostgreSQL connection (pg / Sequelize)
+│   │
+│   ├── controllers/
+│   │   └── user.controller.js      ← req → res logic (thin layer)
+│   │
+│   ├── routes/
+│   │   └── user.routes.js          ← Express route definitions
+│   │
+│   ├── services/
+│   │   └── user.service.js         ← Business logic lives here
+│   │
+│   ├── models/
+│   │   └── user.model.js           ← Sequelize/Prisma model (DB schema)
+│   │
+│   ├── middleware/
+│   │   └── auth.middleware.js      ← JWT check (only in services that need it)
+│   │
+│   └── app.js                      ← Express app setup
+│
+├── .env                            ← PORT, DB_URL, JWT_SECRET etc.
+├── package.json
+├── Dockerfile
+└── index.js                        ← Entry point (starts server)
+```
+
+> Same pattern for **movie-service**, **booking-service**, **payment-service**, **notification-service** — just different controllers/models.
+
+---
+
+## 📁 Service-by-Service File Highlights
+
+### `api-gateway/`
+```
+api-gateway/
+├── src/
+│   ├── config/
+│   │   └── routes.config.js        ← Maps /api/users → user-service:3001
+│   ├── middleware/
+│   │   ├── auth.middleware.js       ← Verifies JWT before forwarding
+│   │   └── rateLimit.middleware.js  ← Redis-based rate limiting
+│   └── app.js                      ← http-proxy-middleware setup
+├── .env                            ← PORT=3000, SERVICE URLs
+├── Dockerfile
+└── index.js
+```
+
+---
+
+### `user-service/`
+```
+src/
+├── controllers/   user.controller.js
+├── routes/        user.routes.js          (POST /register, POST /login)
+├── services/      user.service.js         (bcrypt hash, JWT sign)
+├── models/        user.model.js           (id, name, email, password_hash)
+└── config/        db.js
+```
+
+---
+
+### `movie-service/`
+```
+src/
+├── controllers/   movie.controller.js, show.controller.js
+├── routes/        movie.routes.js, show.routes.js
+│                  (GET /movies, GET /movies/:id/shows, GET /shows/:id/seats)
+├── services/      movie.service.js        (with Redis cache logic)
+├── models/        movie.model.js, theatre.model.js, show.model.js, seat.model.js
+└── config/        db.js, redis.js
+```
+
+---
+
+### `booking-service/`
+```
+src/
+├── controllers/   booking.controller.js
+├── routes/        booking.routes.js       (POST /bookings, GET /bookings/:id)
+├── services/
+│   ├── booking.service.js                 (core logic)
+│   └── seatLock.service.js               ← Redis SETNX seat locking lives here
+├── events/
+│   ├── producer.js                        ← Publishes to Kafka topics
+│   └── consumer.js                        ← Listens to payment-success topic
+├── models/        booking.model.js
+└── config/        db.js, redis.js, kafka.js
+```
+
+---
+
+### `payment-service/`
+```
+src/
+├── controllers/   payment.controller.js
+├── routes/        payment.routes.js
+├── services/      payment.service.js      (mock: 90% success, 10% fail)
+├── events/
+│   ├── consumer.js                        ← Listens to booking-initiated
+│   └── producer.js                        ← Publishes payment-success / payment-failed
+└── models/        payment.model.js
+```
+
+---
+
+### `notification-service/`
+```
+src/
+├── services/      notification.service.js  (console.log for now, Nodemailer later)
+└── events/
+    └── consumer.js                         ← Listens to booking-confirmed
+                                            ← No HTTP server needed, pure Kafka consumer
+```
+
+---
+
+## 📁 Shared Utilities
+
+```
+shared/
+│
+├── kafka/
+│   ├── kafkaClient.js              ← KafkaJS client instance (shared config)
+│   ├── producer.js                 ← Generic publish function
+│   └── consumer.js                 ← Generic subscribe function
+│
+├── redis/
+│   └── redisClient.js              ← ioredis client (shared across services)
+│
+└── middleware/
+    └── verifyToken.js              ← JWT verify helper (used by gateway + services)
+```
+
+---
+
+## 📁 Frontend
+
+```
+frontend/
+│
+├── public/
+│   └── index.html
+│
+├── src/
+│   ├── components/
+│   │   ├── Navbar.jsx
+│   │   ├── MovieCard.jsx
+│   │   ├── SeatGrid.jsx             ← Interactive seat selector
+│   │   └── BookingConfirmation.jsx
+│   │
+│   ├── pages/
+│   │   ├── HomePage.jsx             ← Movie listings
+│   │   ├── MovieDetailPage.jsx      ← Shows for a movie
+│   │   ├── SeatSelectionPage.jsx    ← Seat picker + 10-min timer
+│   │   ├── PaymentPage.jsx
+│   │   └── LoginPage.jsx
+│   │
+│   ├── services/
+│   │   └── api.js                   ← Axios instance pointing to API Gateway
+│   │
+│   ├── App.jsx
+│   └── main.jsx
+│
+├── tailwind.config.js
+├── vite.config.js
+├── package.json
+└── Dockerfile
+```
+
+---
+
+## 📁 Docker & Config Files
+
+```
+bookmyshow/
+│
+├── docker-compose.yml
+│   └── services:
+│       ├── postgres-user       (port 5432)
+│       ├── postgres-movie      (port 5433)
+│       ├── postgres-booking    (port 5434)
+│       ├── postgres-payment    (port 5435)
+│       ├── redis               (port 6379)
+│       ├── zookeeper           (port 2181)
+│       ├── kafka               (port 9092)
+│       ├── api-gateway         (port 3000)
+│       ├── user-service        (port 3001)
+│       ├── movie-service       (port 3002)
+│       ├── booking-service     (port 3003)
+│       ├── payment-service     (port 3004)
+│       ├── notification-service (port 3005)
+│       └── frontend            (port 5173)
+│
+└── .env.example
+    ├── JWT_SECRET=
+    ├── USER_DB_URL=postgresql://...
+    ├── MOVIE_DB_URL=postgresql://...
+    ├── BOOKING_DB_URL=postgresql://...
+    ├── PAYMENT_DB_URL=postgresql://...
+    ├── REDIS_URL=redis://redis:6379
+    └── KAFKA_BROKER=kafka:9092
+```
+
+---
+
+## 🗺️ Port Map (Easy Reference)
+
+| Service | Port |
+|---|---|
+| API Gateway | **3000** ← Frontend talks only to this |
+| User Service | 3001 |
+| Movie Service | 3002 |
+| Booking Service | 3003 |
+| Payment Service | 3004 |
+| Notification Service | 3005 (no HTTP, Kafka only) |
+| Frontend | 5173 |
+| Redis | 6379 |
+| Kafka | 9092 |
+| PostgreSQL (each service) | 5432–5435 |
+
+---
+
+## 🚀 Build Phases Mapped to Folders
+
+| Phase | What We Create |
+|---|---|
+| **Phase 1** | `user-service/`, `movie-service/`, `booking-service/`, `api-gateway/`, `docker-compose.yml` (no Redis/Kafka yet) |
+| **Phase 2** | Add `shared/redis/`, `seatLock.service.js` in booking, cache in movie-service, rate limit in gateway |
+| **Phase 3** | Add `shared/kafka/`, `events/` folders in booking + payment + notification services |
+| **Phase 4** | `frontend/` — React + Tailwind booking UI |
