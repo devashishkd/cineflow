@@ -17,12 +17,23 @@
 - [x] Movie Service setup
 - [x] Booking Service setup
 
-**Pending / To Be Done (Phase 2 & Beyond):**
-- [ ] **Seat Locking:** Not implemented yet. (Needs to prevent race conditions during booking).
-- [ ] **Redis:** Needs to be added for caching and seat locking.
-- [ ] **Kafka:** Needs to be added for asynchronous messaging between services.
-- [ ] **Payment Service:** To handle payment processing.
-- [ ] **Notification Service:** To send booking confirmations (email/SMS) to users.
+**Completed (Phase 2):**
+- [x] Redis-based API Rate Limiting in `api-gateway`
+- [x] Redis Cache-Aside in `movie-service` (movies list + show details)
+- [x] Redis Distributed Seat Locking in `booking-service` (SET NX EX, prevents double-booking)
+- [x] Cache invalidation on write (SCAN-based, non-blocking)
+
+**Completed (Phase 3):**
+- [x] Kafka + Zookeeper added to `docker-compose.yml`
+- [x] `payment-service` created (DB, mock processor, Kafka worker)
+- [x] `notification-service` created (pure Kafka worker, no HTTP)
+- [x] `booking-service` refactored to async Kafka flow
+  - Publishes `booking-initiated` event immediately after creating PENDING booking
+  - Kafka consumer handles `payment-success` (confirm seats + notify) and `payment-failed` (rollback)
+- [x] Shared Kafka utilities created (`shared/kafka/kafkaClient.js`, `producer.js`, `consumer.js`)
+
+**Pending / To Be Done (Phase 4):**
+- [ ] **Frontend:** React + Vite SPA with movie listings, seat picker, booking flow
 # Cineflow — Folder Structure
 ### Node.js + JavaScript + Tailwind CSS
 
