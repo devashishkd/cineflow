@@ -23,7 +23,7 @@
 - [ ] **Kafka:** Needs to be added for asynchronous messaging between services.
 - [ ] **Payment Service:** To handle payment processing.
 - [ ] **Notification Service:** To send booking confirmations (email/SMS) to users.
-# BookMyShow — Folder Structure
+# Cineflow — Folder Structure
 ### Node.js + JavaScript + Tailwind CSS
 
 ---
@@ -31,7 +31,7 @@
 ## 📁 Monorepo Layout
 
 ```
-bookmyshow/
+cineflow/
 │
 ├── docker-compose.yml              ← Spins up ALL services + Postgres + Redis + Kafka
 ├── .env.example                    ← Template for environment variables
@@ -237,7 +237,7 @@ frontend/
 ## 📁 Docker & Config Files
 
 ```
-bookmyshow/
+cineflow/
 │
 ├── docker-compose.yml
 │   └── services:
