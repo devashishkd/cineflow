@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import app from './src/app.js';
 import sequelize from './src/config/db.js';
+import { initProducer } from './src/services/booking.service.js';
+import startBookingConsumer from './src/events/consumer.js';
 
 import './src/models/booking.model.js';
 
@@ -28,7 +30,14 @@ const start = async () => {
   await sequelize.sync({ alter: true });
   console.log('✅ Booking tables synced');
 
+  // Initialize Kafka producer (used by booking.service.js to publish events)
+  await initProducer();
+
+  // Start Kafka consumer (listens for payment results)
+  await startBookingConsumer();
+
   app.listen(PORT, () => console.log(`🚀 Booking Service running on port ${PORT}`));
 };
 
 start();
+

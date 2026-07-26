@@ -1,32 +1,36 @@
 import axios from 'axios';
 import Booking from '../models/booking.model.js';
 import seatLockService from './seatLock.service.js';
+import createProducer from '../../../../shared/kafka/producer.js';
 
 const MOVIE_SERVICE_URL = process.env.MOVIE_SERVICE_URL || 'http://localhost:3002';
 
+// Singleton producer — connected once at startup (see index.js)
+let producer = null;
+
+export const initProducer = async () => {
+  producer = createProducer('booking-service-producer');
+  await producer.connect();
+  console.log('[Booking Service] Kafka producer ready');
+};
+
 /**
- * Phase 2 Booking Flow (with Redis seat locking):
+ * Phase 3 Booking Flow (Async with Kafka):
  *
  * 1. LOCK seats in Redis (SET NX EX) — immediate rejection if any seat is taken
- * 2. Fetch show details from movie-service (includes all seats)
- * 3. Validate that selected seats belong to this show and are AVAILABLE in DB
+ * 2. Fetch show details from movie-service
+ * 3. Validate seats belong to this show and are AVAILABLE
  * 4. Calculate total amount
  * 5. Create booking (status: PENDING)
- * 6. Call movie-service to mark seats as BOOKED in DB
- * 7. Confirm booking (status: CONFIRMED)
- * 8. Release Redis locks (locks are now redundant — seats are BOOKED in DB)
+ * 6. Publish "booking-initiated" to Kafka → payment-service picks this up
+ * 7. Return PENDING booking to user immediately (async — no waiting for payment)
  *
- * On any error after step 1:
- *   - Release Redis locks (step 1 rollback)
- *   - Mark booking as FAILED if it was created (step 5 rollback)
- *
- * Race condition prevention:
- *   - Two simultaneous requests for the same seat → only one SET NX EX wins
- *   - The loser gets an immediate 400 error before any DB write
+ * Kafka consumer (consumer.js) handles the rest:
+ *   payment-success → mark seats BOOKED, update booking to CONFIRMED, notify user
+ *   payment-failed  → release Redis locks, update booking to FAILED, notify user
  */
 const createBooking = async ({ userId, showId, seatIds }) => {
   // ── Step 1: Lock seats in Redis ────────────────────────────────────────
-  // This is the critical section. Only one user wins the lock per seat.
   await seatLockService.lockSeats(seatIds, userId);
 
   let booking = null;
@@ -41,9 +45,7 @@ const createBooking = async ({ userId, showId, seatIds }) => {
       throw new Error('Could not fetch show details. Movie service may be unavailable.');
     }
 
-    // ── Step 3: Validate seats belong to this show and are AVAILABLE in DB
-    // Note: Redis lock prevents race conditions, but we still validate DB state
-    // to guard against seats that were already BOOKED before this request.
+    // ── Step 3: Validate seats ───────────────────────────────────────────
     const allShowSeatIds = show.seats.map((s) => s.id);
     const invalidSeats = seatIds.filter((id) => !allShowSeatIds.includes(id));
     if (invalidSeats.length > 0) {
@@ -72,31 +74,25 @@ const createBooking = async ({ userId, showId, seatIds }) => {
       status: 'PENDING',
     });
 
-    // ── Step 6: Mark seats as BOOKED in movie-service ───────────────────
-    try {
-      await axios.put(`${MOVIE_SERVICE_URL}/api/shows/seats/update-status`, {
-        seatIds,
-        status: 'BOOKED',
-      });
-    } catch (err) {
-      // Rollback: mark booking as FAILED if seat update fails
-      await booking.update({ status: 'FAILED' });
-      throw new Error('Failed to reserve seats. Please try again.');
-    }
+    // ── Step 6: Publish "booking-initiated" event to Kafka ───────────────
+    // payment-service will consume this and process the payment asynchronously
+    await producer.publish('booking-initiated', {
+      bookingId: booking.id,
+      userId,
+      showId,
+      seatIds,
+      seatNumbers,
+      amount: totalAmount,
+    });
 
-    // ── Step 7: Confirm booking ──────────────────────────────────────────
-    await booking.update({ status: 'CONFIRMED' });
-
-    // ── Step 8: Release Redis locks ──────────────────────────────────────
-    // Seats are now BOOKED in DB — the Redis lock is redundant but we clean up
-    await seatLockService.releaseSeats(seatIds);
-
+    // ── Step 7: Return PENDING booking immediately ───────────────────────
+    // The user doesn't wait — they'll be notified when payment completes
     return booking;
+
   } catch (err) {
-    // ── Rollback: release Redis locks on any failure ─────────────────────
+    // ── Rollback: release Redis locks on validation/DB failure ───────────
     await seatLockService.releaseSeats(seatIds);
 
-    // If booking was created but something downstream failed, mark it FAILED
     if (booking && booking.status === 'PENDING') {
       await booking.update({ status: 'FAILED' }).catch(() => {});
     }
