@@ -49,9 +49,17 @@ const getMovieById = async (id) => {
 const createMovie = async (data) => {
   // Invalidate the movies list cache when a new movie is added
   try {
-    const keys = await redis.keys('movies:all:*');
-    if (keys.length) await redis.del(...keys);
-    console.log(`[Cache INVALIDATE] movies:all:* (${keys.length} keys)`);
+    let cursor = '0';
+    let deletedCount = 0;
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', 'movies:all:*', 'COUNT', 100);
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        deletedCount += keys.length;
+      }
+    } while (cursor !== '0');
+    console.log(`[Cache INVALIDATE] movies:all:* (${deletedCount} keys) via SCAN`);
   } catch (err) {
     console.error('[Cache] Redis error on INVALIDATE:', err.message);
   }

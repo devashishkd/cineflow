@@ -115,7 +115,9 @@ services:
         condition: service_healthy
 
   movie-service:
-    build: ./services/movie-service
+    build:
+      context: .
+      dockerfile: services/movie-service/Dockerfile
     container_name: bms-movie-service
     restart: unless-stopped
     ports:
@@ -131,7 +133,9 @@ services:
         condition: service_healthy
 
   booking-service:
-    build: ./services/booking-service
+    build:
+      context: .
+      dockerfile: services/booking-service/Dockerfile
     container_name: bms-booking-service
     restart: unless-stopped
     ports:
@@ -151,7 +155,9 @@ services:
         condition: service_healthy
 
   api-gateway:
-    build: ./services/api-gateway
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
     container_name: bms-api-gateway
     restart: unless-stopped
     ports:
