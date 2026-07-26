@@ -1,14 +1,43 @@
 import { Op } from 'sequelize';
 import { Movie, Theatre, Show, Seat } from '../models/index.js';
+import redis from '../config/redis.js';
+
+// ─── Cache TTLs ───────────────────────────────────────────────────────────
+const MOVIES_CACHE_TTL = 5 * 60;  // 5 minutes — movie listings change infrequently
+const SHOW_CACHE_TTL   = 2 * 60;  // 2 minutes — seat availability changes more often
 
 // ─── Movies ───────────────────────────────────────────────────────────────
 
 const getAllMovies = async (filters = {}) => {
+  const cacheKey = `movies:all:${filters.genre || '*'}:${filters.language || '*'}`;
+
+  // Cache-aside: check Redis first
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      console.log(`[Cache HIT] ${cacheKey}`);
+      return JSON.parse(cached);
+    }
+  } catch (err) {
+    console.error('[Cache] Redis error on GET, falling through to DB:', err.message);
+  }
+
+  // Cache miss — query DB
   const where = {};
   if (filters.genre) where.genre = filters.genre;
   if (filters.language) where.language = filters.language;
 
-  return Movie.findAll({ where, order: [['createdAt', 'DESC']] });
+  const movies = await Movie.findAll({ where, order: [['createdAt', 'DESC']] });
+
+  // Populate cache (fire-and-forget — don't block the response)
+  try {
+    await redis.set(cacheKey, JSON.stringify(movies), 'EX', MOVIES_CACHE_TTL);
+    console.log(`[Cache SET] ${cacheKey} (TTL: ${MOVIES_CACHE_TTL}s)`);
+  } catch (err) {
+    console.error('[Cache] Redis error on SET:', err.message);
+  }
+
+  return movies;
 };
 
 const getMovieById = async (id) => {
@@ -18,6 +47,14 @@ const getMovieById = async (id) => {
 };
 
 const createMovie = async (data) => {
+  // Invalidate the movies list cache when a new movie is added
+  try {
+    const keys = await redis.keys('movies:all:*');
+    if (keys.length) await redis.del(...keys);
+    console.log(`[Cache INVALIDATE] movies:all:* (${keys.length} keys)`);
+  } catch (err) {
+    console.error('[Cache] Redis error on INVALIDATE:', err.message);
+  }
   return Movie.create(data);
 };
 
@@ -47,6 +84,20 @@ const getShowsForMovie = async (movieId) => {
 };
 
 const getShowById = async (showId) => {
+  const cacheKey = `show:${showId}`;
+
+  // Cache-aside: check Redis first
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      console.log(`[Cache HIT] ${cacheKey}`);
+      return JSON.parse(cached);
+    }
+  } catch (err) {
+    console.error('[Cache] Redis error on GET, falling through to DB:', err.message);
+  }
+
+  // Cache miss — query DB with full associations
   const show = await Show.findByPk(showId, {
     include: [
       { model: Movie, as: 'movie' },
@@ -59,6 +110,15 @@ const getShowById = async (showId) => {
     ],
   });
   if (!show) throw new Error('Show not found');
+
+  // Populate cache
+  try {
+    await redis.set(cacheKey, JSON.stringify(show), 'EX', SHOW_CACHE_TTL);
+    console.log(`[Cache SET] ${cacheKey} (TTL: ${SHOW_CACHE_TTL}s)`);
+  } catch (err) {
+    console.error('[Cache] Redis error on SET:', err.message);
+  }
+
   return show;
 };
 
@@ -94,14 +154,31 @@ const getSeatsByShow = async (showId) => {
 
 /**
  * Update seat status — called by booking-service after a booking is confirmed.
- * In Phase 1: AVAILABLE → BOOKED
- * In Phase 2: will use Redis LOCKED status instead
+ *
+ * Phase 2 change: invalidate the show cache after updating seat status so the
+ * next getShowById call reflects the new BOOKED/AVAILABLE state instead of
+ * serving stale data.
  */
 const updateSeatStatus = async (seatIds, status) => {
   const [affectedRows] = await Seat.update(
     { status },
     { where: { id: seatIds } }
   );
+
+  // Find which shows are affected and bust their cache entries
+  if (affectedRows > 0) {
+    try {
+      const seats = await Seat.findAll({ where: { id: seatIds }, attributes: ['showId'] });
+      const showIds = [...new Set(seats.map((s) => s.showId))];
+      for (const showId of showIds) {
+        await redis.del(`show:${showId}`);
+        console.log(`[Cache INVALIDATE] show:${showId}`);
+      }
+    } catch (err) {
+      console.error('[Cache] Redis error on INVALIDATE after seat update:', err.message);
+    }
+  }
+
   return affectedRows;
 };
 

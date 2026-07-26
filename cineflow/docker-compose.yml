@@ -59,19 +59,19 @@ services:
       retries: 5
 
   # ─────────────────────────────────────────────────
-  # PHASE 2: Redis — Uncomment when ready
+  # PHASE 2: Redis — Cache, Seat Locking, Rate Limiting
   # ─────────────────────────────────────────────────
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: bms-redis
-  #   restart: unless-stopped
-  #   ports:
-  #     - "6379:6379"
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 10s
-  #     timeout: 3s
-  #     retries: 5
+  redis:
+    image: redis:7-alpine
+    container_name: bms-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   # ─────────────────────────────────────────────────
   # PHASE 3: Kafka — Uncomment when ready
@@ -123,8 +123,11 @@ services:
     environment:
       PORT: 3002
       DB_URL: postgresql://postgres:postgres@postgres-movie:5432/movie_db
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres-movie:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   booking-service:
@@ -138,11 +141,14 @@ services:
       DB_URL: postgresql://postgres:postgres@postgres-booking:5432/booking_db
       JWT_SECRET: super_secret_jwt_key_change_in_production
       MOVIE_SERVICE_URL: http://movie-service:3002
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres-booking:
         condition: service_healthy
       movie-service:
         condition: service_started
+      redis:
+        condition: service_healthy
 
   api-gateway:
     build: ./services/api-gateway
@@ -155,10 +161,12 @@ services:
       USER_SERVICE_URL: http://user-service:3001
       MOVIE_SERVICE_URL: http://movie-service:3002
       BOOKING_SERVICE_URL: http://booking-service:3003
+      REDIS_URL: redis://redis:6379
     depends_on:
       - user-service
       - movie-service
       - booking-service
+      - redis
 
 volumes:
   postgres-user-data:

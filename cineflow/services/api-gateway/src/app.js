@@ -1,10 +1,14 @@
 import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import cors from 'cors';
+import rateLimitMiddleware from './middleware/rateLimit.middleware.js';
 
 const app = express();
 
 app.use(cors());
+
+// ─── Phase 2: Redis-based rate limiting (100 req/min per IP) ──────────────
+app.use(rateLimitMiddleware);
 
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://localhost:3001';
 const MOVIE_SERVICE_URL = process.env.MOVIE_SERVICE_URL || 'http://localhost:3002';
