@@ -109,49 +109,43 @@ const AllMovies = () => {
 
   return (
     <div className="max-w-7xl mx-auto w-full px-4 md:px-8 py-10 animate-fade-in">
-      {/* Header */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-2">
-          <Film className="w-8 h-8 text-neonTeal" />
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-neonPurple to-neonTeal bg-clip-text text-transparent">
-            All Movies
-          </h1>
-        </div>
-        <p className="text-white/40 text-sm">Browse our complete catalogue of {movies.length} films</p>
-      </div>
+
 
       {/* Controls */}
-      <div className="flex flex-col md:flex-row gap-4 mb-8">
-        {/* Tabs */}
-        <div className="flex gap-1 bg-white/5 p-1 rounded-xl border border-white/10 w-fit">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                tab === t.id
-                  ? 'bg-gradient-to-r from-neonPurple to-neonTeal text-white shadow-lg'
-                  : 'text-white/50 hover:text-white'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+      <div className="flex flex-col gap-6 mb-8">
+        {/* Top Row: Tabs & Search */}
+        <div className="flex flex-col md:flex-row items-stretch gap-4">
+          {/* Tabs */}
+          <div className="flex gap-1 bg-white/5 p-1 rounded-xl border border-white/10 w-fit flex-shrink-0">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  tab === t.id
+                    ? 'bg-gradient-to-r from-neonPurple to-neonTeal text-white shadow-lg'
+                    : 'text-white/50 hover:text-white'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Search */}
+          <div className="flex-grow w-full md:w-auto max-w-sm flex items-center bg-white/5 border border-white/10 rounded-xl px-3 focus-within:border-neonTeal/50 transition-colors">
+            <Search className="w-4 h-4 text-white/30 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Search movies..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-transparent pl-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none h-full"
+            />
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="relative flex-grow max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-          <input
-            type="text"
-            placeholder="Search movies..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-neonTeal/50 transition-colors"
-          />
-        </div>
-
-        {/* Genre filter */}
+        {/* Bottom Row: Genre filter */}
         <div className="flex items-center gap-2 flex-wrap">
           {GENRES.map((g) => (
             <button

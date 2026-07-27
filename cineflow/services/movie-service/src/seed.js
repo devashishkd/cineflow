@@ -123,6 +123,38 @@ const run = async () => {
         rating: 8.2, cast: 'Tom Cruise, Jennifer Connelly, Miles Teller', director: 'Joseph Kosinski', producer: 'Jerry Bruckheimer',
         releaseDate: new Date(Date.now() - 18 * 864e5).toISOString().split('T')[0]
       },
+      {
+        title: 'Deadpool & Wolverine',
+        description: 'A listless Wade Wilson toils away in civilian life with his days as the morally flexible mercenary, Deadpool, behind him. But when his homeworld faces an existential threat, Wade must reluctantly suit-up again.',
+        genre: 'Action', language: 'English', duration: 127,
+        posterUrl: 'https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg',
+        rating: 8.0, cast: 'Ryan Reynolds, Hugh Jackman, Emma Corrin', director: 'Shawn Levy', producer: 'Kevin Feige',
+        releaseDate: new Date(Date.now() - 4 * 864e5).toISOString().split('T')[0]
+      },
+      {
+        title: 'Spider-Man 4',
+        description: 'Peter Parker continues his journey as the friendly neighborhood Spider-Man, facing new threats while navigating his new life and the multiverse consequences.',
+        genre: 'Action', language: 'English', duration: 135,
+        posterUrl: 'https://image.tmdb.org/t/p/w500/a2uGBEn26rWnOfyA60V4gIuK2lF.jpg',
+        rating: 8.5, cast: 'Tom Holland, Zendaya, Jacob Batalon', director: 'Destin Daniel Cretton', producer: 'Kevin Feige, Amy Pascal',
+        releaseDate: new Date(Date.now() - 5 * 864e5).toISOString().split('T')[0]
+      },
+      {
+        title: 'Twisters',
+        description: 'As storm season intensifies, the paths of former storm chaser Kate Cooper and reckless social-media superstar Tyler Owens collide when terrifying phenomena never seen before are unleashed.',
+        genre: 'Thriller', language: 'English', duration: 122,
+        posterUrl: 'https://image.tmdb.org/t/p/w500/pjnD08FlMAIXsfOLKQbvmO0f0MD.jpg',
+        rating: 7.5, cast: 'Daisy Edgar-Jones, Glen Powell, Anthony Ramos', director: 'Lee Isaac Chung', producer: 'Frank Marshall',
+        releaseDate: new Date(Date.now() - 7 * 864e5).toISOString().split('T')[0]
+      },
+      {
+        title: 'Avengers: Doomsday',
+        description: 'The Avengers must assemble once again to face an unprecedented threat as Doctor Doom emerges from the shadows to conquer the multiverse.',
+        genre: 'Action', language: 'English', duration: 160,
+        posterUrl: 'https://image.tmdb.org/t/p/w500/or06FN3Dka5tukK1e9sl16pB3iy.jpg',
+        rating: 8.8, cast: 'Robert Downey Jr., Pedro Pascal, Vanessa Kirby', director: 'Anthony Russo, Joe Russo', producer: 'Kevin Feige',
+        releaseDate: new Date(Date.now() - 20 * 864e5).toISOString().split('T')[0]
+      },
       // UPCOMING
       {
         title: 'The Grand Budapest Hotel',

@@ -58,7 +58,7 @@ const getAllMovies = async (filters = {}) => {
   const queryOptions = {
     where,
     include,
-    order: [['createdAt', 'DESC']],
+    order: [['releaseDate', 'DESC']],
   };
 
   if (include.length > 0) {
