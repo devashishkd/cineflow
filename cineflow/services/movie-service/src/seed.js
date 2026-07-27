@@ -132,10 +132,10 @@ const run = async () => {
         releaseDate: new Date(Date.now() - 4 * 864e5).toISOString().split('T')[0]
       },
       {
-        title: 'Spider-Man 4',
+        title: 'Spider-Man : Brand New Day',
         description: 'Peter Parker continues his journey as the friendly neighborhood Spider-Man, facing new threats while navigating his new life and the multiverse consequences.',
         genre: 'Action', language: 'English', duration: 135,
-        posterUrl: 'https://image.tmdb.org/t/p/w500/a2uGBEn26rWnOfyA60V4gIuK2lF.jpg',
+        posterUrl: 'https://assets-in.bmscdn.com/iedb/movies/images/mobile/thumbnail/xlarge/spider-man-brand-new-day-et00447840-1781677342.jpg',
         rating: 8.5, cast: 'Tom Holland, Zendaya, Jacob Batalon', director: 'Destin Daniel Cretton', producer: 'Kevin Feige, Amy Pascal',
         releaseDate: new Date(Date.now() - 5 * 864e5).toISOString().split('T')[0]
       },
@@ -212,14 +212,23 @@ const run = async () => {
       targetDate.setDate(targetDate.getDate() + dayOffset);
       const dateStr = targetDate.toISOString().split('T')[0];
 
-      for (const theatre of createdTheatres) {
-        for (let i = 0; i < 3; i++) { 
-          const randomMovie = nowShowingMovies[Math.floor(Math.random() * nowShowingMovies.length)];
+      // Group theatres by city
+      const theatresByCity = {};
+      for (const t of createdTheatres) {
+        if (!theatresByCity[t.city]) theatresByCity[t.city] = [];
+        theatresByCity[t.city].push(t);
+      }
+
+      for (const city of Object.keys(theatresByCity)) {
+        const cityTheatres = theatresByCity[city];
+        for (const movie of nowShowingMovies) {
+          const randomTheatre = cityTheatres[Math.floor(Math.random() * cityTheatres.length)];
+          const randomTime = showTimes[Math.floor(Math.random() * showTimes.length)];
           showsData.push({
-            movieId: randomMovie.id,
-            theatreId: theatre.id,
+            movieId: movie.id,
+            theatreId: randomTheatre.id,
             showDate: dateStr,
-            showTime: showTimes[i],
+            showTime: randomTime,
             price: Math.floor(Math.random() * 100) + 150 
           });
         }
