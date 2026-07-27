@@ -32,8 +32,12 @@
   - Kafka consumer handles `payment-success` (confirm seats + notify) and `payment-failed` (rollback)
 - [x] Shared Kafka utilities created (`shared/kafka/kafkaClient.js`, `producer.js`, `consumer.js`)
 
-**Pending / To Be Done (Phase 4):**
-- [ ] **Frontend:** React + Vite SPA with movie listings, seat picker, booking flow
+**Completed (Phase 4):**
+- [x] **Frontend:** React + Vite SPA built with Tailwind CSS.
+  - Features: Glassmorphism design, premium dark UI, subtle micro-animations.
+  - Pages: Home (Movie Catalog), Movie Details (Shows), Seat Selection (Booking).
+  - Auth: JWT integrated with Login/Register pages.
+  - Asynchronous UI: Booking Status page added that polls `/bookings/:id` while Kafka processes the payment in the background.
 # Cineflow — Folder Structure
 ### Node.js + JavaScript + Tailwind CSS
 
