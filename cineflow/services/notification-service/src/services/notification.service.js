@@ -5,7 +5,7 @@
  * Currently logs to console — replace with Nodemailer/Twilio in production.
  */
 
-const sendBookingConfirmation = ({ userId, bookingId, seatNumbers, showId, transactionId }) => {
+const sendBookingConfirmation = async ({ userId, bookingId, seatNumbers, showId, transactionId }) => {
   console.log(`\n📧 [Notification] ━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`   To:          User ${userId}`);
   console.log(`   Subject:     🎬 Your Booking is Confirmed!`);
@@ -17,7 +17,7 @@ const sendBookingConfirmation = ({ userId, bookingId, seatNumbers, showId, trans
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 };
 
-const sendBookingFailure = ({ userId, bookingId, reason }) => {
+const sendBookingFailure = async ({ userId, bookingId, reason }) => {
   console.log(`\n📧 [Notification] ━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`   To:          User ${userId}`);
   console.log(`   Subject:     ❌ Booking Failed`);
