@@ -200,6 +200,8 @@ services:
       PORT: 3004
       DB_URL: postgresql://postgres:postgres@postgres-payment:5432/payment_db
       KAFKA_BROKER: kafka:9092
+      RAZORPAY_KEY_ID: rzp_test_TIXK5NX3qBmgty
+      RAZORPAY_KEY_SECRET: UmRYcO4ui7ybDOuwzu09sRYV
     depends_on:
       postgres-payment:
         condition: service_healthy
@@ -231,6 +233,7 @@ services:
       USER_SERVICE_URL: http://user-service:3001
       MOVIE_SERVICE_URL: http://movie-service:3002
       BOOKING_SERVICE_URL: http://booking-service:3003
+      PAYMENT_SERVICE_URL: http://payment-service:3004
       REDIS_URL: redis://redis:6379
     depends_on:
       - user-service

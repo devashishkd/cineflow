@@ -60,8 +60,15 @@ const SeatSelection = () => {
       console.log('booking response', response);
       const booking = response.data.data;
       console.log('booking object', booking);
-      // Navigate to polling status screen
-      navigate('/booking/status', { state: { bookingId: booking.id } });
+      // Navigate to payment page with booking details
+      navigate('/payment', { 
+        state: { 
+          bookingId: booking.id,
+          amount: totalPrice,
+          showId,
+          seatIds: selectedSeats
+        } 
+      });
     } catch (error) {
       setBookingError(error.response?.data?.message || 'Failed to initiate booking');
       setIsBooking(false);

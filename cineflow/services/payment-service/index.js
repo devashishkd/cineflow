@@ -1,7 +1,24 @@
 import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
 import sequelize from './src/config/db.js';
 import Payment from './src/models/payment.model.js';
 import startPaymentWorker from './src/events/worker.js';
+import paymentRoutes from './src/routes/payment.routes.js';
+
+const app = express();
+const PORT = process.env.PORT || 3004;
+
+app.use(cors());
+app.use(express.json());
+
+// Routes
+app.use('/api/payments', paymentRoutes);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'Payment Service is running' });
+});
 
 const start = async () => {
   try {
@@ -13,8 +30,12 @@ const start = async () => {
 
     // Start Kafka worker
     await startPaymentWorker();
+    
+    // Start HTTP Server
+    app.listen(PORT, () => {
+      console.log(`🚀 Payment Service running on port ${PORT}`);
+    });
 
-    console.log('🚀 Payment Service running (Kafka worker mode)');
   } catch (err) {
     console.error('❌ Payment Service startup failed:', err);
     process.exit(1);

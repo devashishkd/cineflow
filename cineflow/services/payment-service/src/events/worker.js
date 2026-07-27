@@ -1,71 +1,28 @@
 import createConsumer from '../../../../shared/kafka/consumer.js';
-import createProducer from '../../../../shared/kafka/producer.js';
-import paymentService from '../services/payment.service.js';
 
 // Topics
 const BOOKING_INITIATED = 'booking-initiated';
-const PAYMENT_SUCCESS   = 'payment-success';
-const PAYMENT_FAILED    = 'payment-failed';
 
 /**
  * Payment Service Kafka Worker
  *
  * Listens to: "booking-initiated"
- * Publishes:  "payment-success" or "payment-failed"
  *
- * Flow:
- *   1. Consume booking-initiated event (contains bookingId, userId, amount)
- *   2. Run mock payment processor
- *   3. Publish result to the appropriate topic
+ * Flow (with Razorpay integration):
+ *   1. Consume booking-initiated event — just for logging/auditing
+ *   2. Actual payment is handled via Razorpay checkout (frontend → /api/payments/create-order)
+ *   3. After user pays, /api/payments/verify publishes "payment-success" or "payment-failed"
  */
 const startPaymentWorker = async () => {
-  const producer = createProducer('payment-service-producer');
-  await producer.connect();
-
   const consumer = createConsumer('payment-service-consumer', 'payment-group');
 
   await consumer.subscribe(BOOKING_INITIATED, async (topic, message) => {
     const payload = JSON.parse(message.value.toString());
     const { bookingId, userId, amount, seatIds, showId } = payload;
 
-    console.log(`[Payment Worker] Processing payment for booking: ${bookingId}`);
-
-    try {
-      const { success, payment } = await paymentService.processPayment({
-        bookingId,
-        userId,
-        amount,
-      });
-
-      if (success) {
-        await producer.publish(PAYMENT_SUCCESS, {
-          bookingId,
-          userId,
-          showId,
-          seatIds,
-          amount,
-          transactionId: payment.transactionId,
-        });
-      } else {
-        await producer.publish(PAYMENT_FAILED, {
-          bookingId,
-          userId,
-          showId,
-          seatIds,
-          reason: payment.failureReason,
-        });
-      }
-    } catch (err) {
-      console.error('[Payment Worker] Unexpected error:', err.message);
-      // Publish failure so booking-service can rollback
-      await producer.publish(PAYMENT_FAILED, {
-        bookingId,
-        userId,
-        showId,
-        seatIds,
-        reason: 'Internal payment error',
-      }).catch(() => {});
-    }
+    console.log(`[Payment Worker] Received booking-initiated for booking: ${bookingId}. Waiting for Razorpay payment...`);
+    // With Razorpay integration, we no longer process mock payments here.
+    // The payment will be verified via the /api/payments/verify endpoint which will publish payment-success or payment-failed.
   });
 
   console.log('[Payment Worker] 🚀 Listening for booking-initiated events...');

@@ -66,4 +66,14 @@ app.use(
   })
 );
 
+// Payment routes → Payment Service
+const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'http://localhost:3004';
+app.use(
+  '/api/payments',
+  createProxyMiddleware({
+    target: PAYMENT_SERVICE_URL,
+    changeOrigin: true,
+  })
+);
+
 export default app;
