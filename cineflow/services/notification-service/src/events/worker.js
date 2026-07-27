@@ -19,9 +19,9 @@ const startNotificationWorker = async () => {
       const payload = JSON.parse(message.value.toString());
 
       if (topic === BOOKING_CONFIRMED) {
-        notificationService.sendBookingConfirmation(payload);
+        await notificationService.sendBookingConfirmation(payload);
       } else if (topic === PAYMENT_FAILED) {
-        notificationService.sendBookingFailure(payload);
+        await notificationService.sendBookingFailure(payload);
       }
     }
   );
