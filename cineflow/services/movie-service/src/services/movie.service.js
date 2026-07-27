@@ -9,7 +9,7 @@ const SHOW_CACHE_TTL   = 2 * 60;  // 2 minutes — seat availability changes mor
 // ─── Movies ───────────────────────────────────────────────────────────────
 
 const getAllMovies = async (filters = {}) => {
-  const cacheKey = `movies:all:${filters.genre || '*'}:${filters.language || '*'}`;
+  const cacheKey = `movies:all:${filters.genre || '*'}:${filters.language || '*'}:${filters.city || '*'}:${filters.status || '*'}`;
 
   // Cache-aside: check Redis first
   try {
@@ -27,7 +27,45 @@ const getAllMovies = async (filters = {}) => {
   if (filters.genre) where.genre = filters.genre;
   if (filters.language) where.language = filters.language;
 
-  const movies = await Movie.findAll({ where, order: [['createdAt', 'DESC']] });
+  const today = new Date().toISOString().split('T')[0];
+  if (filters.status === 'now_showing') {
+    where.releaseDate = { [Op.lte]: today };
+  } else if (filters.status === 'upcoming') {
+    where.releaseDate = { [Op.gt]: today };
+  }
+
+  const include = [];
+
+  // If a city is provided AND we're not just looking for upcoming movies, we filter by shows in that city
+  if (filters.city && filters.status !== 'upcoming') {
+    include.push({
+      model: Show,
+      as: 'shows',
+      required: true,
+      include: [
+        {
+          model: Theatre,
+          as: 'theatre',
+          where: { city: filters.city },
+          required: true,
+          attributes: [],
+        },
+      ],
+      attributes: [],
+    });
+  }
+
+  const queryOptions = {
+    where,
+    include,
+    order: [['createdAt', 'DESC']],
+  };
+
+  if (include.length > 0) {
+    queryOptions.group = ['Movie.id'];
+  }
+
+  const movies = await Movie.findAll(queryOptions);
 
   // Populate cache (fire-and-forget — don't block the response)
   try {
@@ -80,15 +118,37 @@ const createTheatre = async (data) => {
 
 // ─── Shows ────────────────────────────────────────────────────────────────
 
-const getShowsForMovie = async (movieId) => {
+const getShowsForMovie = async (movieId, filters = {}) => {
+  const where = { movieId };
+  if (filters.theatreId) where.theatreId = filters.theatreId;
+
+  const theatreWhere = {};
+  if (filters.city) theatreWhere.city = filters.city;
+
   return Show.findAll({
-    where: { movieId },
-    include: [{ model: Theatre, as: 'theatre' }],
+    where,
+    include: [
+      {
+        model: Theatre,
+        as: 'theatre',
+        where: Object.keys(theatreWhere).length ? theatreWhere : undefined,
+        required: Object.keys(theatreWhere).length > 0,
+      },
+    ],
     order: [
       ['showDate', 'ASC'],
       ['showTime', 'ASC'],
     ],
   });
+};
+
+const getCities = async () => {
+  const theatres = await Theatre.findAll({
+    attributes: ['city'],
+    group: ['city'],
+    order: [['city', 'ASC']],
+  });
+  return theatres.map((t) => t.city);
 };
 
 const getShowById = async (showId) => {
@@ -196,6 +256,7 @@ export default {
   createMovie,
   getAllTheatres,
   createTheatre,
+  getCities,
   getShowsForMovie,
   getShowById,
   createShow,

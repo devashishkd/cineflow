@@ -2,8 +2,8 @@ import movieService from '../services/movie.service.js';
 
 const getAllMovies = async (req, res) => {
   try {
-    const { genre, language } = req.query;
-    const movies = await movieService.getAllMovies({ genre, language });
+    const filters = req.query;
+    const movies = await movieService.getAllMovies(filters);
     res.json({ success: true, count: movies.length, data: movies });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -30,8 +30,18 @@ const createMovie = async (req, res) => {
 
 const getShowsForMovie = async (req, res) => {
   try {
-    const shows = await movieService.getShowsForMovie(req.params.movieId);
+    const { city, theatreId } = req.query;
+    const shows = await movieService.getShowsForMovie(req.params.movieId, { city, theatreId });
     res.json({ success: true, count: shows.length, data: shows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const getCities = async (req, res) => {
+  try {
+    const cities = await movieService.getCities();
+    res.json({ success: true, data: cities });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -61,6 +71,7 @@ export default {
   getMovieById,
   createMovie,
   getShowsForMovie,
+  getCities,
   getAllTheatres,
   createTheatre,
 };

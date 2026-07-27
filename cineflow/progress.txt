@@ -1,0 +1,58 @@
+# Cineflow Feature Expansion — Progress
+
+## Status: IN PROGRESS
+
+### ✅ Phase 1 — Backend: City + Theatre Filtering
+- Added `GET /api/movies/cities` route
+- Added `getCities()` to movie.service.js and movie.controller.js
+- Updated `getShowsForMovie()` to accept `?city=` and `?theatreId=` query params
+- Shows now filtered by theatre city via Sequelize include + where
+
+### ✅ Phase 2 — Backend: My Bookings API
+- Confirmed `GET /api/bookings/me` is already proxied through API Gateway
+- Confirmed booking-service has `getUserBookings` endpoint
+
+### ✅ Phase 3 — Frontend: City & Theatre Selection
+- MovieDetail.jsx completely rebuilt
+- City pill selector (All Cities + each city)
+- Shows grouped by theatre name (BMS-style)
+- Show cards show: time, date, price
+
+### ✅ Phase 4 — Frontend: SeatSelection Fixes
+- Grid now uses `rowMap[row][col]` structure
+- Missing column positions filled with invisible placeholders
+- Booked seats STAY in original position (no layout shift)
+- Added movie title, theatre name, city, date, time header bar at top
+
+### ✅ Phase 5 — Frontend: Navbar Profile Dropdown
+- Avatar with user initials
+- Dropdown: My Bookings, Help & Support, Account Settings, Log Out
+- Click-outside to close
+- Search integrated into Navbar
+
+### ✅ Phase 6 — Frontend: My Bookings Page
+- Created `/profile/bookings` route
+- MyBookings.jsx with status badges (CONFIRMED/PENDING/FAILED)
+- Seat numbers displayed as tags
+- Link to booking status detail
+
+### ✅ Phase 7 — Frontend: Movie Search
+- Hero search bar on Home page
+- Filters movies client-side by title and genre
+- Also in Navbar for quick access from any page
+- Search results dropdown in Navbar
+
+### ✅ Phase 8 — Frontend: You May Also Like
+- Recommendations section in MovieDetail.jsx
+- Filters by same genre, excludes current movie
+- Horizontal grid of 6 poster cards
+
+### ⏳ Phase 9 — Cloudinary Image Upload
+- Status: WAITING for Cloudinary credentials from user
+- Once provided: add `cloudinary` SDK to movie-service
+- Upload poster during movie creation, store CDN URL
+- posterUrl already displayed in Home.jsx, MovieDetail.jsx, SeatSelection.jsx
+
+## Remaining Steps
+1. Rebuild movie-service and frontend Docker containers
+2. Get Cloudinary credentials from user

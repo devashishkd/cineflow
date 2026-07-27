@@ -17,10 +17,10 @@ const getTransporter = () => {
 };
 
 /**
- * Send a plaintext email using Nodemailer.
- * @param {{ to: string, subject: string, text: string }} options
+ * Send an email using Nodemailer.
+ * @param {{ to: string, subject: string, text: string, attachments?: Array }} options
  */
-const sendEmail = async ({ to, subject, text }) => {
+const sendEmail = async ({ to, subject, text, attachments }) => {
   const from = process.env.SMTP_USER;
   
   if (!from || !process.env.SMTP_PASS) {
@@ -31,12 +31,18 @@ const sendEmail = async ({ to, subject, text }) => {
   const transporter = getTransporter();
 
   try {
-    const info = await transporter.sendMail({
+    const mailOptions = {
       from,
       to,
       subject,
       text, // ONLY sending text, NO html to prevent spam filtering
-    });
+    };
+
+    if (attachments) {
+      mailOptions.attachments = attachments;
+    }
+
+    const info = await transporter.sendMail(mailOptions);
     console.log(`[Email Channel] ✅ Sent to ${to} — Message ID: ${info.messageId}`);
   } catch (err) {
     console.error('❌ Error sending email:', err);

@@ -23,6 +23,18 @@ const Movie = sequelize.define(
       type: DataTypes.STRING,
       defaultValue: 'English',
     },
+    releaseDate: {
+      type: DataTypes.DATEONLY,
+    },
+    cast: {
+      type: DataTypes.STRING,
+    },
+    director: {
+      type: DataTypes.STRING,
+    },
+    producer: {
+      type: DataTypes.STRING,
+    },
     duration: {
       type: DataTypes.INTEGER, // in minutes
     },

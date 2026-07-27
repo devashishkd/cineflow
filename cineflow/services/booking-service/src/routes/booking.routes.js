@@ -15,5 +15,6 @@ router.get('/me', bookingController.getUserBookings);
 
 router.post('/', bookingController.createBooking);
 router.get('/:id', bookingController.getBookingById);
+router.get('/:id/pdf', bookingController.generatePdfTicket);
 
 export default router;

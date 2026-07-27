@@ -107,6 +107,15 @@ const createBooking = async ({ userId, showId, seatIds }) => {
 const getBookingById = async (bookingId, userId) => {
   const booking = await Booking.findOne({ where: { id: bookingId, userId } });
   if (!booking) throw new Error('Booking not found');
+  
+  // Enrich with show details
+  try {
+    const res = await axios.get(`${MOVIE_SERVICE_URL}/api/shows/${booking.showId}`);
+    booking.dataValues.show = res.data.data;
+  } catch (err) {
+    console.error(`Failed to fetch show details for booking ${bookingId}`);
+  }
+  
   return booking;
 };
 
@@ -114,10 +123,22 @@ const getBookingById = async (bookingId, userId) => {
  * Get all bookings for the authenticated user
  */
 const getUserBookings = async (userId) => {
-  return Booking.findAll({
+  const bookings = await Booking.findAll({
     where: { userId },
     order: [['createdAt', 'DESC']],
   });
+
+  // Enrich all bookings with show details
+  for (let booking of bookings) {
+    try {
+      const res = await axios.get(`${MOVIE_SERVICE_URL}/api/shows/${booking.showId}`);
+      booking.dataValues.show = res.data.data;
+    } catch (err) {
+      console.error(`Failed to fetch show details for booking ${booking.id}`);
+    }
+  }
+
+  return bookings;
 };
 
 export default { createBooking, getBookingById, getUserBookings };

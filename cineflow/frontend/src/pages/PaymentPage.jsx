@@ -12,7 +12,7 @@ const PaymentPage = () => {
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [error, setError] = useState('');
 
-  const { bookingId, amount, showId, seatIds } = location.state || {};
+  const { bookingId, amount, showId, seatIds, seatNumbers, movie, theatre, showDate, showTime } = location.state || {};
 
   // Redirect if no booking data
   useEffect(() => {
@@ -144,19 +144,36 @@ const PaymentPage = () => {
 
         <div className="p-8">
           {/* Order Summary */}
-          <div className="bg-black/40 rounded-2xl p-5 border border-white/5 space-y-3 mb-6">
-            <h3 className="text-white/60 text-xs uppercase tracking-widest mb-3">Order Summary</h3>
-            <div className="flex justify-between text-sm">
-              <span className="text-white/60">Booking ID</span>
-              <span className="font-mono">{bookingId.slice(0, 8).toUpperCase()}</span>
+          <div className="bg-black/40 rounded-2xl p-5 border border-white/5 space-y-4 mb-6">
+            <h3 className="text-white/60 text-xs uppercase tracking-widest border-b border-white/10 pb-2">Order Summary</h3>
+            
+            {movie && (
+              <div className="flex gap-4">
+                {movie.posterUrl && (
+                  <img src={movie.posterUrl} alt={movie.title} className="w-16 h-20 object-cover rounded-lg" />
+                )}
+                <div>
+                  <div className="font-bold text-lg leading-tight">{movie.title}</div>
+                  <div className="text-xs text-white/50 mt-1">{theatre?.name}{theatre?.city ? `, ${theatre.city}` : ''}</div>
+                  <div className="text-xs text-white/50">{showDate} | {showTime}</div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2 pt-2 border-t border-white/5">
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Booking ID</span>
+                <span className="font-mono">{bookingId.slice(0, 8).toUpperCase()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Seats ({seatIds?.length || 0})</span>
+                <span className="font-semibold text-neonPurple">{seatNumbers?.join(', ') || ''}</span>
+              </div>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-white/60">Seats</span>
-              <span className="font-semibold">{seatIds?.length || 0} seat{(seatIds?.length || 0) !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="border-t border-white/5 pt-3 flex justify-between text-lg">
-              <span className="text-white/80 font-medium">Total</span>
-              <span className="font-bold text-2xl text-neonTeal">₹{amount}</span>
+
+            <div className="border-t border-white/5 pt-3 flex justify-between items-center text-lg mt-2">
+              <span className="text-white/80 font-medium">Total Payable</span>
+              <span className="font-bold text-3xl text-neonTeal">₹{amount}</span>
             </div>
           </div>
 

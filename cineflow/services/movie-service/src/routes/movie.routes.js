@@ -9,6 +9,7 @@ import movieController from '../controllers/movie.controller.js';
 // GET  /api/movies/theatres    — list all theatres (with optional ?city= filter)
 // POST /api/movies/theatres    — create a theatre
 
+router.get('/cities', movieController.getCities);
 router.get('/theatres', movieController.getAllTheatres);
 router.post('/theatres', movieController.createTheatre);
 

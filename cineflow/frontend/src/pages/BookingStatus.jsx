@@ -43,6 +43,22 @@ const BookingStatus = () => {
     return () => clearInterval(pollInterval);
   }, [bookingId, navigate]);
 
+  const handleDownloadPdf = async (bId) => {
+    try {
+      const response = await api.get(`/bookings/${bId}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `ticket-${bId.slice(0, 8)}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF. Please try again later.');
+    }
+  };
+
   return (
     <div className="flex-grow flex items-center justify-center p-4">
       <div className="glass-card w-full max-w-md p-10 rounded-3xl text-center relative overflow-hidden animate-slide-up">
@@ -66,23 +82,43 @@ const BookingStatus = () => {
               <h2 className="text-2xl font-bold mb-2 text-green-400">Booking Confirmed!</h2>
               <p className="text-white/80 mb-6">Your tickets have been secured.</p>
               
-              <div className="bg-black/40 rounded-xl p-4 text-left border border-white/5 space-y-2 mb-8">
+              <div className="bg-black/40 rounded-xl p-5 text-left border border-white/5 space-y-3 mb-8">
+                {bookingDetails?.show?.movie && (
+                  <div className="border-b border-white/5 pb-3 mb-3">
+                    <div className="font-bold text-lg">{bookingDetails.show.movie.title}</div>
+                    <div className="text-white/50 text-sm mt-1">{bookingDetails.show.theatre.name}, {bookingDetails.show.theatre.city}</div>
+                    <div className="text-white/50 text-sm">{bookingDetails.show.showDate} | {bookingDetails.show.showTime}</div>
+                  </div>
+                )}
+                
                 <div className="flex justify-between">
                   <span className="text-white/50 text-sm">Booking ID</span>
-                  <span className="font-mono text-sm">{bookingDetails?.id.slice(0,8)}</span>
+                  <span className="font-mono text-sm">{bookingDetails?.id.slice(0,8).toUpperCase()}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-white/50 text-sm">Seats</span>
+                  <span className="font-bold text-sm text-neonPurple">{bookingDetails?.seatNumbers?.join(', ')}</span>
+                </div>
+                <div className="flex justify-between border-t border-white/5 pt-3 mt-3">
                   <span className="text-white/50 text-sm">Amount Paid</span>
                   <span className="font-bold text-neonTeal">₹{bookingDetails?.totalAmount}</span>
                 </div>
               </div>
 
-              <button 
-                onClick={() => navigate('/')}
-                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 font-semibold py-3 rounded-xl transition-all"
-              >
-                Back to Home
-              </button>
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => handleDownloadPdf(bookingDetails.id)}
+                  className="w-full bg-gradient-to-r from-neonTeal to-neonPurple hover:opacity-90 font-bold py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(20,184,166,0.3)] text-white"
+                >
+                  Download E-Ticket (PDF)
+                </button>
+                <button 
+                  onClick={() => navigate('/')}
+                  className="w-full bg-white/5 hover:bg-white/10 border border-white/10 font-medium py-3 rounded-xl transition-all text-white/70"
+                >
+                  Back to Home
+                </button>
+              </div>
             </div>
           </div>
         )}
