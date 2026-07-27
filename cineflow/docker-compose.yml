@@ -124,9 +124,10 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
-      interval: 10s
-      timeout: 10s
-      retries: 15
+      interval: 15s
+      timeout: 15s
+      retries: 20
+      start_period: 60s
 
   # ─────────────────────────────────────────────────
   # SERVICES
@@ -176,6 +177,7 @@ services:
       DB_URL: postgresql://postgres:postgres@postgres-booking:5432/booking_db
       JWT_SECRET: super_secret_jwt_key_change_in_production
       MOVIE_SERVICE_URL: http://movie-service:3002
+      USER_SERVICE_URL: http://user-service:3001
       REDIS_URL: redis://redis:6379
       KAFKA_BROKER: kafka:9092
     depends_on:
@@ -200,8 +202,8 @@ services:
       PORT: 3004
       DB_URL: postgresql://postgres:postgres@postgres-payment:5432/payment_db
       KAFKA_BROKER: kafka:9092
-      RAZORPAY_KEY_ID: rzp_test_TIXK5NX3qBmgty
-      RAZORPAY_KEY_SECRET: UmRYcO4ui7ybDOuwzu09sRYV
+      RAZORPAY_KEY_ID: rzp_test_TIYa6hMlgmzRjF
+      RAZORPAY_KEY_SECRET: G7no8lJFpfFuMIsE9wAfHPVa
     depends_on:
       postgres-payment:
         condition: service_healthy
@@ -216,6 +218,9 @@ services:
     restart: unless-stopped
     environment:
       KAFKA_BROKER: kafka:9092
+      SMTP_USER: "devashishkd111@gmail.com"
+      SMTP_PASS: "xobo cxoz kugt ptuj"
+      USER_SERVICE_URL: http://user-service:3001
     depends_on:
       kafka:
         condition: service_healthy

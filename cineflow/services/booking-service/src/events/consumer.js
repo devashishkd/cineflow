@@ -49,13 +49,17 @@ const startBookingConsumer = async () => {
           // 3. Release Redis seat locks (seats are now BOOKED in DB)
           await seatLockService.releaseSeats(seatIds);
 
-          // 4. Publish booking-confirmed for notification-service
+          // 4. Fetch the real seat numbers from the booking record
+          const booking = await Booking.findOne({ where: { id: bookingId } });
+          const finalSeatNumbers = booking ? booking.seatNumbers : seatNumbers;
+
+          // 5. Publish booking-confirmed for notification-service
           await notifyProducer.publish(BOOKING_CONFIRMED, {
             bookingId,
             userId,
             showId,
             seatIds,
-            seatNumbers,
+            seatNumbers: finalSeatNumbers,
             transactionId,
           });
         } catch (err) {

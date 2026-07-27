@@ -7,13 +7,16 @@ const PAYMENT_FAILED = 'payment-failed';
 const createOrder = async (req, res) => {
   try {
     const { bookingId, userId, amount, currency = 'INR' } = req.body;
-    
+    console.log("bookingId:", bookingId);
+    console.log("userId:", userId);
+    console.log("amount:", amount);
+    console.log("currency:", currency);
     if (!bookingId || !userId || !amount) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
-
+  
     const orderData = await paymentService.createOrder({ bookingId, userId, amount, currency });
-    
+    console.log("orderData:", orderData);
     res.status(200).json({
       success: true,
       data: {

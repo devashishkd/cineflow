@@ -1,30 +1,82 @@
+import emailService from './email.service.js';
+import smsService from './sms.service.js';
+import analyticsService from './analytics.service.js';
+import axios from 'axios';
+
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://localhost:3001';
+
 /**
- * Notification Service
- *
- * Sends notifications to users after booking outcomes.
- * Currently logs to console — replace with Nodemailer/Twilio in production.
+ * Helper to fetch user details dynamically if they aren't provided in the event.
  */
+const getUserDetails = async (userId, existingEmail, existingPhone) => {
+  let email = existingEmail;
+  let phone = existingPhone;
 
-const sendBookingConfirmation = async ({ userId, bookingId, seatNumbers, showId, transactionId }) => {
-  console.log(`\n📧 [Notification] ━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`   To:          User ${userId}`);
-  console.log(`   Subject:     🎬 Your Booking is Confirmed!`);
-  console.log(`   Booking ID:  ${bookingId}`);
-  console.log(`   Show ID:     ${showId}`);
-  console.log(`   Seats:       ${(seatNumbers || []).join(', ')}`);
-  console.log(`   Transaction: ${transactionId}`);
-  console.log(`   Message:     Enjoy the movie! 🍿`);
-  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+  if (!email && userId) {
+    try {
+      const res = await axios.get(`${USER_SERVICE_URL}/api/auth/internal/${userId}`);
+      if (res.data && res.data.data) {
+        email = res.data.data.email;
+        // Phone could also be fetched here if user-service supported it
+      }
+    } catch (err) {
+      console.error(`[Notification Orchestrator] Failed to fetch user ${userId}:`, err.message);
+    }
+  }
+
+  return { email, phone };
 };
 
-const sendBookingFailure = async ({ userId, bookingId, reason }) => {
-  console.log(`\n📧 [Notification] ━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-  console.log(`   To:          User ${userId}`);
-  console.log(`   Subject:     ❌ Booking Failed`);
-  console.log(`   Booking ID:  ${bookingId}`);
-  console.log(`   Reason:      ${reason}`);
-  console.log(`   Message:     Your seats have been released. Please try again.`);
-  console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+/**
+ * Orchestrator: Coordinates Email, SMS, and Analytics for Booking Confirmation
+ */
+const processBookingConfirmation = async ({ userId, bookingId, seatNumbers, showId, transactionId, userEmail, userPhone }) => {
+  const { email, phone } = await getUserDetails(userId, userEmail, userPhone);
+
+  // 1. Email
+  if (email) {
+    await emailService.sendBookingConfirmationEmail({ 
+      to: email, bookingId, seatNumbers, showId, transactionId 
+    });
+  }
+
+  // 2. SMS
+  if (phone) {
+    await smsService.sendBookingConfirmationSms({ 
+      to: phone, bookingId, seatNumbers 
+    });
+  }
+
+  // 3. Analytics
+  await analyticsService.trackBookingConfirmed({ 
+    userId, bookingId, showId, seatNumbers, transactionId 
+  });
 };
 
-export default { sendBookingConfirmation, sendBookingFailure };
+/**
+ * Orchestrator: Coordinates Email, SMS, and Analytics for Booking Failure
+ */
+const processBookingFailure = async ({ userId, bookingId, reason, userEmail, userPhone }) => {
+  const { email, phone } = await getUserDetails(userId, userEmail, userPhone);
+
+  // 1. Email
+  if (email) {
+    await emailService.sendBookingFailureEmail({ 
+      to: email, bookingId, reason 
+    });
+  }
+
+  // 2. SMS
+  if (phone) {
+    await smsService.sendBookingFailureSms({ 
+      to: phone, bookingId, reason 
+    });
+  }
+
+  // 3. Analytics
+  await analyticsService.trackBookingFailure({ 
+    userId, bookingId, reason 
+  });
+};
+
+export default { processBookingConfirmation, processBookingFailure };

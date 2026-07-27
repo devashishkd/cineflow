@@ -40,4 +40,14 @@ const getProfile = async (req, res) => {
   }
 };
 
-export default { register, login, getProfile };
+const getInternalUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await userService.getProfile(userId);
+    res.json({ success: true, data: user });
+  } catch (err) {
+    res.status(404).json({ success: false, message: err.message });
+  }
+};
+
+export default { register, login, getProfile, getInternalUser };
