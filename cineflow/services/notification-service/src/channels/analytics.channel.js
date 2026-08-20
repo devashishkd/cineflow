@@ -1,4 +1,4 @@
-import createProducer from '../../../../../shared/kafka/producer.js';
+import createProducer from '../../../../shared/kafka/producer.js';
 
 /**
  * Analytics channel — emits structured events to the `analytics-events` Kafka topic.

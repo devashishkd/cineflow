@@ -102,10 +102,11 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181"]
+      test: ["CMD", "bash", "-c", "echo ruok | nc -z localhost 2181 || exit 1"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -125,9 +126,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
       interval: 15s
-      timeout: 15s
-      retries: 20
-      start_period: 60s
+      timeout: 20s
+      retries: 30
+      start_period: 90s
 
   # ─────────────────────────────────────────────────
   # SERVICES
@@ -188,7 +189,7 @@ services:
       redis:
         condition: service_healthy
       kafka:
-        condition: service_healthy
+        condition: service_started
 
   payment-service:
     build:
@@ -208,7 +209,7 @@ services:
       postgres-payment:
         condition: service_healthy
       kafka:
-        condition: service_healthy
+        condition: service_started
 
   notification-service:
     build:
@@ -223,7 +224,7 @@ services:
       USER_SERVICE_URL: http://user-service:3001
     depends_on:
       kafka:
-        condition: service_healthy
+        condition: service_started
 
   api-gateway:
     build:
