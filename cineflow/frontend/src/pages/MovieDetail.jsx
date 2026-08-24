@@ -179,7 +179,7 @@ const MovieDetail = () => {
 
       {/* Shows grouped by theatre */}
       {Object.keys(showsByTheatre).length === 0 ? (
-        <div className="glass-card p-8 rounded-2xl text-center text-white/40">
+        <div className="glass-card p-8 rounded-2xl text-center text-white/40 mb-16">
           No shows available for this selection.
         </div>
       ) : (
