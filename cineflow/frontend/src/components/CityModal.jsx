@@ -2,7 +2,7 @@ import { useCity } from '../context/CityContext';
 import { MapPin, X } from 'lucide-react';
 
 const CityModal = () => {
-  const { cities, selectedCity, changeCity, isCityModalOpen, setIsCityModalOpen } = useCity();
+  const { cities, selectedCity, changeCity, isCityModalOpen, setIsCityModalOpen, isLoadingCities } = useCity();
 
   if (!isCityModalOpen) return null;
 
@@ -19,24 +19,24 @@ const CityModal = () => {
     <div className="fixed inset-0 z-[100] flex items-center justify-center animate-fade-in p-4">
       {/* Backdrop */}
       <div 
-        className={`absolute inset-0 bg-obsidian/80 backdrop-blur-sm ${canClose ? 'cursor-pointer' : ''}`}
+        className={`absolute inset-0 bg-black/80 backdrop-blur-sm ${canClose ? 'cursor-pointer' : ''}`}
         onClick={handleClose}
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl bg-charcoal border border-white/10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden z-10 scale-in">
+      <div className="relative w-full max-w-xl bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-10">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-white/5">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-neonTeal" />
+        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-white">
+            <MapPin className="w-4 h-4 text-zinc-400" />
             Pick a Region
           </h2>
           {canClose && (
             <button 
               onClick={handleClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-white/50 hover:text-white"
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-white"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -44,40 +44,47 @@ const CityModal = () => {
         {/* Content */}
         <div className="p-6">
           {!canClose && (
-            <p className="text-white/60 mb-6 text-sm">
+            <p className="text-zinc-400 mb-6 text-sm">
               Please select your city to see movies playing near you.
             </p>
           )}
           
-          {cities.length === 0 ? (
-            <div className="text-center py-8 text-white/40">
-              <div className="w-8 h-8 border-2 border-neonTeal border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          {isLoadingCities ? (
+            <div className="text-center py-8 text-zinc-500 text-sm">
+              <div className="w-6 h-6 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
               Loading cities...
             </div>
+          ) : cities.length === 0 ? (
+            <div className="text-center py-8 text-zinc-400 text-sm">
+              <p>No cities available.</p>
+              <button onClick={() => changeCity('All Cities')} className="mt-4 px-4 py-2 border border-zinc-700 text-zinc-200 rounded-lg hover:bg-zinc-800 transition-all text-xs font-semibold">
+                Continue with 'All Cities'
+              </button>
+            </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               <button
                 onClick={() => changeCity('All Cities')}
-                className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border transition-all hover:-translate-y-1 ${
+                className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all ${
                   selectedCity === 'All Cities' || (!selectedCity && canClose)
-                    ? 'border-neonTeal bg-neonTeal/10 text-neonTeal shadow-[0_0_15px_rgba(20,184,166,0.15)]' 
-                    : 'border-white/10 bg-white/5 hover:border-white/30 text-white/70'
+                    ? 'border-white bg-white text-zinc-950 font-bold' 
+                    : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 text-zinc-300 font-medium'
                 }`}
               >
-                <span className="font-semibold text-sm">All Cities</span>
+                <span className="text-xs">All Cities</span>
               </button>
               
               {cities.map(city => (
                 <button
                   key={city}
                   onClick={() => changeCity(city)}
-                  className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border transition-all hover:-translate-y-1 ${
+                  className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all ${
                     selectedCity === city 
-                      ? 'border-neonTeal bg-neonTeal/10 text-neonTeal shadow-[0_0_15px_rgba(20,184,166,0.15)]' 
-                      : 'border-white/10 bg-white/5 hover:border-white/30 text-white/70'
+                      ? 'border-white bg-white text-zinc-950 font-bold' 
+                      : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 text-zinc-300 font-medium'
                   }`}
                 >
-                  <span className="font-semibold text-sm">{city}</span>
+                  <span className="text-xs">{city}</span>
                 </button>
               ))}
             </div>

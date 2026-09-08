@@ -2,12 +2,6 @@ import { AppError } from '../utils/errors.js';
 
 /**
  * Global error handling middleware.
- * Must be registered LAST in app.js (after all routes).
- *
- * Handles:
- *  - AppError subclasses (NotFoundError, ValidationError, AuthError, etc.)
- *  - Sequelize validation errors
- *  - Unexpected errors (500)
  */
 const errorMiddleware = (err, req, res, next) => {
   // Log unexpected errors
@@ -15,7 +9,7 @@ const errorMiddleware = (err, req, res, next) => {
     console.error('[Error Middleware]', err);
   }
 
-  // Typed app errors (NotFoundError, ValidationError, etc.)
+  // Typed app errors
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       success: false,
@@ -23,18 +17,27 @@ const errorMiddleware = (err, req, res, next) => {
     });
   }
 
-  // Sequelize unique constraint violation
-  if (err.name === 'SequelizeUniqueConstraintError') {
+  // Mongoose duplicate key error (E11000)
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyValue || {})[0] || 'field';
     return res.status(409).json({
       success: false,
-      message: 'A record with this value already exists.',
+      message: `A record with this ${field} already exists.`,
     });
   }
 
-  // Sequelize validation error
-  if (err.name === 'SequelizeValidationError') {
-    const messages = err.errors.map((e) => e.message).join(', ');
+  // Mongoose validation error
+  if (err.name === 'ValidationError') {
+    const messages = Object.values(err.errors).map((e) => e.message).join(', ');
     return res.status(400).json({ success: false, message: messages });
+  }
+
+  // Mongoose CastError (invalid ObjectId)
+  if (err.name === 'CastError') {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid ID format for field '${err.path}'`,
+    });
   }
 
   // Generic fallback

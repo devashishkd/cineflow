@@ -60,61 +60,59 @@ const BookingStatus = () => {
   };
 
   return (
-    <div className="flex-grow flex items-center justify-center p-4">
-      <div className="glass-card w-full max-w-md p-10 rounded-3xl text-center relative overflow-hidden animate-slide-up">
+    <div className="flex-grow flex items-center justify-center p-4 bg-zinc-950">
+      <div className="w-full max-w-md p-8 rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl text-center relative overflow-hidden">
         
         {status === 'PENDING' && (
-          <div className="space-y-6">
-            <div className="absolute inset-0 bg-neonTeal/5 animate-pulse" />
-            <Loader2 className="w-20 h-20 text-neonTeal animate-spin mx-auto relative z-10" />
-            <div className="relative z-10">
-              <h2 className="text-2xl font-bold mb-2">Processing Payment</h2>
-              <p className="text-white/60 text-sm">Please wait while we secure your seats...</p>
+          <div className="space-y-4">
+            <Loader2 className="w-12 h-12 text-zinc-400 animate-spin mx-auto" />
+            <div>
+              <h2 className="text-xl font-bold mb-1 text-white tracking-tight">Processing Payment</h2>
+              <p className="text-zinc-400 text-xs">Please wait while we secure your seats...</p>
             </div>
           </div>
         )}
 
         {status === 'CONFIRMED' && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="absolute inset-0 bg-green-500/10" />
-            <CheckCircle2 className="w-20 h-20 text-green-400 mx-auto relative z-10" />
-            <div className="relative z-10">
-              <h2 className="text-2xl font-bold mb-2 text-green-400">Booking Confirmed!</h2>
-              <p className="text-white/80 mb-6">Your tickets have been secured.</p>
+          <div className="space-y-5 animate-fade-in">
+            <CheckCircle2 className="w-14 h-14 text-zinc-100 mx-auto" />
+            <div>
+              <h2 className="text-xl font-bold mb-1 text-white tracking-tight">Booking Confirmed</h2>
+              <p className="text-zinc-400 text-xs mb-6">Your tickets have been secured.</p>
               
-              <div className="bg-black/40 rounded-xl p-5 text-left border border-white/5 space-y-3 mb-8">
+              <div className="bg-zinc-950 rounded-xl p-4 text-left border border-zinc-800 space-y-2.5 mb-6 text-xs">
                 {bookingDetails?.show?.movie && (
-                  <div className="border-b border-white/5 pb-3 mb-3">
-                    <div className="font-bold text-lg">{bookingDetails.show.movie.title}</div>
-                    <div className="text-white/50 text-sm mt-1">{bookingDetails.show.theatre.name}, {bookingDetails.show.theatre.city}</div>
-                    <div className="text-white/50 text-sm">{bookingDetails.show.showDate} | {bookingDetails.show.showTime}</div>
+                  <div className="border-b border-zinc-800 pb-3 mb-2">
+                    <div className="font-semibold text-sm text-white">{bookingDetails.show.movie.title}</div>
+                    <div className="text-zinc-400 mt-0.5">{bookingDetails.show.theatre.name}, {bookingDetails.show.theatre.city}</div>
+                    <div className="text-zinc-500 mt-0.5">{bookingDetails.show.showDate} | {bookingDetails.show.showTime}</div>
                   </div>
                 )}
                 
                 <div className="flex justify-between">
-                  <span className="text-white/50 text-sm">Booking ID</span>
-                  <span className="font-mono text-sm">{bookingDetails?.id.slice(0,8).toUpperCase()}</span>
+                  <span className="text-zinc-400">Booking ID</span>
+                  <span className="font-mono text-zinc-200">{bookingDetails?.id.slice(0,8).toUpperCase()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-white/50 text-sm">Seats</span>
-                  <span className="font-bold text-sm text-neonPurple">{bookingDetails?.seatNumbers?.join(', ')}</span>
+                  <span className="text-zinc-400">Seats</span>
+                  <span className="font-semibold text-zinc-100">{bookingDetails?.seatNumbers?.join(', ')}</span>
                 </div>
-                <div className="flex justify-between border-t border-white/5 pt-3 mt-3">
-                  <span className="text-white/50 text-sm">Amount Paid</span>
-                  <span className="font-bold text-neonTeal">₹{bookingDetails?.totalAmount}</span>
+                <div className="flex justify-between border-t border-zinc-800 pt-2.5 mt-2">
+                  <span className="text-zinc-400 font-medium">Amount Paid</span>
+                  <span className="font-bold text-white text-sm">₹{bookingDetails?.totalAmount}</span>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
                 <button 
                   onClick={() => handleDownloadPdf(bookingDetails.id)}
-                  className="w-full bg-gradient-to-r from-neonTeal to-neonPurple hover:opacity-90 font-bold py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(20,184,166,0.3)] text-white"
+                  className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-semibold py-2.5 rounded-lg transition-colors text-xs"
                 >
                   Download E-Ticket (PDF)
                 </button>
                 <button 
                   onClick={() => navigate('/')}
-                  className="w-full bg-white/5 hover:bg-white/10 border border-white/10 font-medium py-3 rounded-xl transition-all text-white/70"
+                  className="w-full bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 font-medium py-2.5 rounded-lg transition-colors text-xs"
                 >
                   Back to Home
                 </button>
@@ -124,16 +122,15 @@ const BookingStatus = () => {
         )}
 
         {status === 'FAILED' && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="absolute inset-0 bg-red-500/5" />
-            <XCircle className="w-20 h-20 text-red-400 mx-auto relative z-10" />
-            <div className="relative z-10">
-              <h2 className="text-2xl font-bold mb-2 text-red-400">Payment Failed</h2>
-              <p className="text-white/60 mb-8">We couldn't process your payment. Your seats have been released.</p>
+          <div className="space-y-4 animate-fade-in">
+            <XCircle className="w-14 h-14 text-zinc-400 mx-auto" />
+            <div>
+              <h2 className="text-xl font-bold mb-1 text-white tracking-tight">Payment Failed</h2>
+              <p className="text-zinc-400 text-xs mb-6">We couldn't process your payment. Your seats have been released.</p>
               
               <button 
                 onClick={() => navigate('/')}
-                className="w-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 font-semibold py-3 rounded-xl transition-all"
+                className="w-full bg-white hover:bg-zinc-200 text-zinc-950 font-semibold py-2.5 rounded-lg transition-colors text-xs"
               >
                 Try Again
               </button>

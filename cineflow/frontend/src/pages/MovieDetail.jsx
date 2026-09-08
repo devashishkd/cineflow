@@ -26,7 +26,7 @@ const MovieDetail = () => {
       try {
         const [movieRes, showsRes, allMoviesRes] = await Promise.all([
           api.get(`/movies/${id}`),
-          api.get(`/movies/${id}/shows`),
+          api.get(`/shows/movie/${id}${selectedCity ? `?city=${encodeURIComponent(selectedCity)}` : ''}`),
           api.get('/movies'),
         ]);
         setMovie(movieRes.data.data);
@@ -39,7 +39,7 @@ const MovieDetail = () => {
       }
     };
     fetchAll();
-  }, [id]);
+  }, [id, selectedCity]);
 
   // Re-fetch shows when city changes
   useEffect(() => {
@@ -47,7 +47,7 @@ const MovieDetail = () => {
     const fetchShows = async () => {
       try {
         const params = selectedCity ? `?city=${encodeURIComponent(selectedCity)}` : '';
-        const res = await api.get(`/movies/${id}/shows${params}`);
+        const res = await api.get(`/shows/movie/${id}${params}`);
         setShows(res.data.data || []);
       } catch (err) {
         console.error('Error fetching shows:', err);
@@ -76,59 +76,57 @@ const MovieDetail = () => {
     <div className="flex-grow flex items-center justify-center">
       <div className="flex gap-2">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="w-2 h-2 rounded-full bg-neonTeal animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+          <div key={i} className="w-2 h-2 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
         ))}
       </div>
     </div>
   );
-  if (!movie) return <div className="flex-grow flex items-center justify-center text-white/50">Movie not found.</div>;
+  if (!movie) return <div className="flex-grow flex items-center justify-center text-zinc-500">Movie not found.</div>;
 
   return (
-    <div className="max-w-6xl mx-auto w-full px-4 md:px-8 py-12 animate-fade-in">
+    <div className="max-w-6xl mx-auto w-full px-4 md:px-8 py-10 bg-zinc-950">
       {/* Back button */}
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-white/40 hover:text-white mb-6 transition-colors text-sm">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors text-xs font-medium">
         <ChevronLeft className="w-4 h-4" /> Back
       </button>
 
       {/* Movie Hero */}
-      <div className="glass-card rounded-3xl p-6 md:p-8 mb-10 flex flex-col md:flex-row gap-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-neonPurple/15 blur-[120px] rounded-full pointer-events-none" />
-
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:p-8 mb-10 flex flex-col md:flex-row gap-8 relative overflow-hidden">
         {/* Poster */}
-        <div className="w-full md:w-56 flex-shrink-0 aspect-[2/3] bg-gradient-to-br from-charcoal to-obsidian rounded-2xl border border-white/10 overflow-hidden">
+        <div className="w-full md:w-56 flex-shrink-0 aspect-[2/3] bg-zinc-950 rounded-xl border border-zinc-800 overflow-hidden">
           {movie.posterUrl ? (
             <img src={movie.posterUrl} alt={movie.title} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-white/20">
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-zinc-600">
               <Film className="w-12 h-12" />
-              <span className="text-xs font-bold tracking-widest uppercase">{movie.genre}</span>
+              <span className="text-xs font-semibold tracking-widest uppercase">{movie.genre}</span>
             </div>
           )}
         </div>
 
         {/* Info */}
         <div className="flex-grow flex flex-col justify-center relative z-10">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-neonPurple/20 border border-neonPurple/30 text-neonPurple">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-200">
               {movie.genre}
             </span>
             {movie.language && (
-              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/50">
+              <span className="text-xs font-medium px-2.5 py-0.5 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-400">
                 {movie.language}
               </span>
             )}
           </div>
-          <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight">{movie.title}</h1>
-          <p className="text-white/60 mb-6 leading-relaxed max-w-xl">{movie.description}</p>
+          <h1 className="text-3xl md:text-4xl font-bold mb-3 text-white tracking-tight leading-tight">{movie.title}</h1>
+          <p className="text-zinc-400 mb-6 text-sm leading-relaxed max-w-2xl">{movie.description}</p>
 
-          <div className="flex flex-wrap items-center gap-6 text-sm text-white/70">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-neonTeal" />
+          <div className="flex flex-wrap items-center gap-6 text-xs text-zinc-300">
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-zinc-400" />
               <span>{movie.duration} mins</span>
             </div>
             {movie.rating > 0 && (
-              <div className="flex items-center gap-2">
-                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+              <div className="flex items-center gap-1.5">
+                <Star className="w-4 h-4 text-zinc-300 fill-zinc-300" />
                 <span>{movie.rating} / 10</span>
               </div>
             )}
@@ -138,19 +136,19 @@ const MovieDetail = () => {
 
       {/* Date & City Header */}
       <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold flex items-center gap-3 flex-shrink-0">
-          <Calendar className="w-6 h-6 text-neonPurple" />
+        <h2 className="text-xl font-bold flex items-center gap-2 text-white tracking-tight">
+          <Calendar className="w-5 h-5 text-zinc-400" />
           Available Shows
         </h2>
         {selectedCity && (
-          <span className="text-sm text-neonTeal bg-neonTeal/10 px-3 py-1 rounded-full border border-neonTeal/20">
-            Filtering by: {selectedCity}
+          <span className="text-xs text-zinc-300 bg-zinc-900 px-3 py-1 rounded-md border border-zinc-800 font-medium">
+            City: {selectedCity}
           </span>
         )}
       </div>
 
       {/* Date Selector */}
-      <div className="flex items-center gap-3 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="flex items-center gap-2.5 mb-8 overflow-x-auto pb-2 scrollbar-hide">
         {next5Days.map(dateStr => {
           const d = new Date(dateStr + 'T00:00:00');
           const dayName = d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
@@ -163,15 +161,15 @@ const MovieDetail = () => {
             <button
               key={dateStr}
               onClick={() => setSelectedDate(dateStr)}
-              className={`flex flex-col items-center justify-center min-w-[72px] py-2.5 rounded-xl border transition-all flex-shrink-0 ${
+              className={`flex flex-col items-center justify-center min-w-[70px] py-2 rounded-xl border transition-all flex-shrink-0 ${
                 isSelected 
-                  ? 'bg-neonTeal/20 border-neonTeal text-neonTeal shadow-[0_0_15px_rgba(20,184,166,0.2)]' 
-                  : 'bg-white/5 border-white/10 hover:border-white/30 text-white/50 hover:text-white hover:bg-white/10'
+                  ? 'bg-white border-white text-zinc-950 shadow-sm' 
+                  : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-white'
               }`}
             >
-              <span className="text-[10px] font-bold mb-0.5">{dayName}</span>
-              <span className={`text-xl font-bold leading-none mb-0.5 ${isSelected ? 'text-white' : ''}`}>{dayNum}</span>
-              <span className="text-[10px] font-bold leading-none">{month}</span>
+              <span className="text-[10px] font-semibold mb-0.5">{dayName}</span>
+              <span className={`text-lg font-bold leading-none mb-0.5 ${isSelected ? 'text-zinc-950' : 'text-zinc-200'}`}>{dayNum}</span>
+              <span className="text-[10px] font-semibold leading-none">{month}</span>
             </button>
           );
         })}
@@ -179,34 +177,33 @@ const MovieDetail = () => {
 
       {/* Shows grouped by theatre */}
       {Object.keys(showsByTheatre).length === 0 ? (
-        <div className="glass-card p-8 rounded-2xl text-center text-white/40 mb-16">
+        <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-xl text-center text-zinc-500 mb-16 text-sm">
           No shows available for this selection.
         </div>
       ) : (
-        <div className="space-y-6 mb-16">
+        <div className="space-y-4 mb-16">
           {Object.entries(showsByTheatre).map(([theatreName, theatreShows]) => (
-            <div key={theatreName} className="glass-card rounded-2xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3">
-                <MapPin className="w-4 h-4 text-neonTeal" />
-                <h3 className="font-bold text-white">{theatreName}</h3>
+            <div key={theatreName} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+              <div className="px-6 py-3.5 border-b border-zinc-800 flex items-center gap-2 bg-zinc-950">
+                <MapPin className="w-4 h-4 text-zinc-400" />
+                <h3 className="text-sm font-semibold text-white">{theatreName}</h3>
                 {theatreShows[0]?.theatre?.city && (
-                  <span className="text-xs text-white/40 ml-1">· {theatreShows[0].theatre.city}</span>
+                  <span className="text-xs text-zinc-500 ml-1">· {theatreShows[0].theatre.city}</span>
                 )}
               </div>
-              <div className="p-6 flex flex-wrap gap-3">
+              <div className="p-5 flex flex-wrap gap-2.5">
                 {theatreShows.map(show => (
                   <Link
                     key={show.id}
                     to={`/show/${show.id}/seats`}
-                    className="group flex flex-col items-center gap-1 px-5 py-3 rounded-xl border border-white/10 hover:border-neonTeal/60 hover:bg-neonTeal/5 transition-all"
+                    className="group flex flex-col items-center px-4 py-2.5 rounded-lg border border-zinc-800 bg-zinc-950 hover:border-zinc-600 hover:bg-zinc-800/80 transition-all"
                   >
-                    <span className="text-lg font-bold text-neonTeal group-hover:text-neonTeal/80">
+                    <span className="text-sm font-bold text-zinc-100 group-hover:text-white">
                       {show.showTime?.slice(0, 5)}
                     </span>
-                    <span className="text-xs text-white/40">
-                      {new Date(show.showDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                    <span className="text-[11px] text-zinc-400 mt-0.5">
+                      ₹{show.price}
                     </span>
-                    <span className="text-xs font-semibold text-neonPurple mt-1">₹{show.price}</span>
                   </Link>
                 ))}
               </div>
@@ -219,26 +216,26 @@ const MovieDetail = () => {
       {recommendations.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">You May Also Like</h2>
-            <span className="text-sm text-neonTeal">{movie.genre}</span>
+            <h2 className="text-xl font-bold text-white tracking-tight">You May Also Like</h2>
+            <span className="text-xs text-zinc-400">{movie.genre}</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {recommendations.map(rec => (
               <Link
                 key={rec.id}
                 to={`/movie/${rec.id}`}
-                className="group flex flex-col rounded-xl overflow-hidden border border-white/5 hover:border-neonPurple/40 transition-all hover:scale-105 duration-300 hover:shadow-lg hover:shadow-neonPurple/10"
+                className="group flex flex-col rounded-xl overflow-hidden border border-zinc-800 hover:border-zinc-600 transition-all bg-zinc-900"
               >
-                <div className="aspect-[2/3] bg-gradient-to-br from-charcoal to-obsidian flex items-center justify-center overflow-hidden">
+                <div className="aspect-[2/3] bg-zinc-950 flex items-center justify-center overflow-hidden">
                   {rec.posterUrl ? (
-                    <img src={rec.posterUrl} alt={rec.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <img src={rec.posterUrl} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
-                    <Film className="w-8 h-8 text-white/10 group-hover:scale-110 transition-transform duration-500" />
+                    <Film className="w-8 h-8 text-zinc-700" />
                   )}
                 </div>
-                <div className="p-3 bg-charcoal">
-                  <p className="text-xs font-semibold text-white/90 truncate">{rec.title}</p>
-                  <p className="text-xs text-white/30 mt-0.5">{rec.duration} mins</p>
+                <div className="p-3 bg-zinc-900">
+                  <p className="text-xs font-medium text-zinc-200 truncate group-hover:text-white">{rec.title}</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">{rec.duration} mins</p>
                 </div>
               </Link>
             ))}

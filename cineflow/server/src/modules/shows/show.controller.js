@@ -57,4 +57,31 @@ export const updateSeatStatus = async (req, res) => {
   }
 };
 
-export default { getShowsForMovie, getShowById, createShow, getSeatsByShow, updateSeatStatus };
+export const updateShow = async (req, res) => {
+  try {
+    const show = await showService.updateShow(req.params.id, req.body);
+    res.json({ success: true, data: show });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+export const deleteShow = async (req, res) => {
+  try {
+    await showService.deleteShow(req.params.id);
+    res.json({ success: true, message: 'Show deleted successfully' });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+export const getAllShows = async (req, res) => {
+  try {
+    const shows = await showService.getAllShows(req.query);
+    res.json({ success: true, count: shows.length, data: shows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export default { getShowsForMovie, getShowById, createShow, getSeatsByShow, updateSeatStatus, updateShow, deleteShow, getAllShows };

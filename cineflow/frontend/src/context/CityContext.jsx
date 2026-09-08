@@ -3,25 +3,43 @@ import api from '../services/api';
 
 const CityContext = createContext();
 
+const DEFAULT_POPULAR_CITIES = ['Mumbai', 'Delhi-NCR', 'Bengaluru', 'Hyderabad', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad'];
+
 export const CityProvider = ({ children }) => {
-  const [cities, setCities] = useState([]);
+  const [cities, setCities] = useState(DEFAULT_POPULAR_CITIES);
   const [selectedCity, setSelectedCity] = useState('');
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
-  
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
+
+  const fetchCities = async () => {
+    try {
+      const res = await api.get('/theatres/cities');
+      if (res.data.data && res.data.data.length > 0) {
+        setCities(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching cities:', err);
+    }
+  };
+
   useEffect(() => {
-    // Try to load saved city from localStorage
+    // Load saved city from localStorage or default to Mumbai / first
     const saved = localStorage.getItem('selectedCity');
     if (saved) {
       setSelectedCity(saved);
     } else {
-      // If no city is selected on initial load, force the modal open
-      setIsCityModalOpen(true);
+      setSelectedCity('Mumbai');
     }
 
-    api.get('/movies/cities')
-      .then(res => setCities(res.data.data || []))
-      .catch(err => console.error('Error fetching cities:', err));
+    fetchCities();
   }, []);
+
+  // Re-fetch cities when city selector modal opens
+  useEffect(() => {
+    if (isCityModalOpen) {
+      fetchCities();
+    }
+  }, [isCityModalOpen]);
 
   const changeCity = (city) => {
     setSelectedCity(city);
@@ -39,7 +57,9 @@ export const CityProvider = ({ children }) => {
       selectedCity, 
       changeCity,
       isCityModalOpen,
-      setIsCityModalOpen
+      setIsCityModalOpen,
+      isLoadingCities,
+      refreshCities: fetchCities,
     }}>
       {children}
     </CityContext.Provider>

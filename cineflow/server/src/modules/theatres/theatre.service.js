@@ -1,31 +1,45 @@
+import { Op } from 'sequelize';
 import Theatre from './theatre.model.js';
+import { NotFoundError } from '../../utils/errors.js';
 
-/**
- * Get all theatres, optionally filtered by city.
- */
 export const getAllTheatres = async (city) => {
   const where = {};
-  if (city) where.city = city;
-  return Theatre.findAll({ where });
+  if (city) where.city = { [Op.iLike]: city };
+  return Theatre.findAll({
+    where,
+    order: [['name', 'ASC']]
+  });
 };
 
-/**
- * Get all unique cities that have at least one theatre.
- */
 export const getCities = async () => {
   const theatres = await Theatre.findAll({
     attributes: ['city'],
+    where: {
+      city: { [Op.ne]: null }
+    },
     group: ['city'],
-    order: [['city', 'ASC']],
+    order: [['city', 'ASC']]
   });
-  return theatres.map((t) => t.city);
+  const dbCities = theatres.map(t => t.city?.trim()).filter(Boolean);
+  const defaultCities = ['Mumbai', 'Delhi-NCR', 'Bengaluru', 'Hyderabad', 'Chennai', 'Pune', 'Kolkata', 'Ahmedabad', 'Chandigarh', 'Jaipur'];
+  return Array.from(new Set([...dbCities, ...defaultCities]));
 };
 
-/**
- * Create a new theatre.
- */
-export const createTheatre = async (data) => {
-  return Theatre.create(data);
+export const createTheatre = async (data) => Theatre.create(data);
+
+export const updateTheatre = async (id, data) => {
+  const [updatedCount, [theatre]] = await Theatre.update(data, { 
+    where: { id }, 
+    returning: true 
+  });
+  if (updatedCount === 0) throw new NotFoundError('Theatre not found');
+  return theatre;
 };
 
-export default { getAllTheatres, getCities, createTheatre };
+export const deleteTheatre = async (id) => {
+  const deletedCount = await Theatre.destroy({ where: { id } });
+  if (deletedCount === 0) throw new NotFoundError('Theatre not found');
+  return { id };
+};
+
+export default { getAllTheatres, getCities, createTheatre, updateTheatre, deleteTheatre };

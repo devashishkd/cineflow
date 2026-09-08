@@ -2,74 +2,20 @@ version: '3.8'
 
 services:
   # ─────────────────────────────────────────────────
-  # DATABASES (one per service — DB per service pattern)
+  # POSTGRES (Single DB for Monolith)
   # ─────────────────────────────────────────────────
-  postgres-user:
+  postgres:
     image: postgres:15-alpine
-    container_name: bms-postgres-user
+    container_name: cineflow-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: user_db
+      POSTGRES_DB: cineflow
     ports:
       - "5432:5432"
     volumes:
-      - postgres-user-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-movie:
-    image: postgres:15-alpine
-    container_name: bms-postgres-movie
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: movie_db
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres-movie-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-booking:
-    image: postgres:15-alpine
-    container_name: bms-postgres-booking
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: booking_db
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres-booking-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  postgres-payment:
-    image: postgres:15-alpine
-    container_name: bms-postgres-payment
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: payment_db
-    ports:
-      - "5435:5432"
-    volumes:
-      - postgres-payment-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -77,192 +23,19 @@ services:
       retries: 5
 
   # ─────────────────────────────────────────────────
-  # PHASE 2: Redis — Cache, Seat Locking, Rate Limiting
+  # REDIS (Cache, Seat Locking, BullMQ)
   # ─────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: bms-redis
+    container_name: cineflow-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
 
-  # ─────────────────────────────────────────────────
-  # PHASE 3: Kafka — Async Event-Driven Messaging
-  # ─────────────────────────────────────────────────
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.4.0
-    container_name: bms-zookeeper
-    restart: unless-stopped
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    healthcheck:
-      test: ["CMD", "bash", "-c", "echo ruok | nc -z localhost 2181 || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
-
-  kafka:
-    image: confluentinc/cp-kafka:7.4.0
-    container_name: bms-kafka
-    restart: unless-stopped
-    depends_on:
-      zookeeper:
-        condition: service_healthy
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-    healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
-      interval: 15s
-      timeout: 20s
-      retries: 30
-      start_period: 90s
-
-  # ─────────────────────────────────────────────────
-  # SERVICES
-  # ─────────────────────────────────────────────────
-  user-service:
-    build: ./services/user-service
-    container_name: bms-user-service
-    restart: unless-stopped
-    ports:
-      - "3001:3001"
-    environment:
-      PORT: 3001
-      DB_URL: postgresql://postgres:postgres@postgres-user:5432/user_db
-      JWT_SECRET: super_secret_jwt_key_change_in_production
-    depends_on:
-      postgres-user:
-        condition: service_healthy
-
-  movie-service:
-    build:
-      context: .
-      dockerfile: services/movie-service/Dockerfile
-    container_name: bms-movie-service
-    restart: unless-stopped
-    ports:
-      - "3002:3002"
-    environment:
-      PORT: 3002
-      DB_URL: postgresql://postgres:postgres@postgres-movie:5432/movie_db
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      postgres-movie:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  booking-service:
-    build:
-      context: .
-      dockerfile: services/booking-service/Dockerfile
-    container_name: bms-booking-service
-    restart: unless-stopped
-    ports:
-      - "3003:3003"
-    environment:
-      PORT: 3003
-      DB_URL: postgresql://postgres:postgres@postgres-booking:5432/booking_db
-      JWT_SECRET: super_secret_jwt_key_change_in_production
-      MOVIE_SERVICE_URL: http://movie-service:3002
-      USER_SERVICE_URL: http://user-service:3001
-      REDIS_URL: redis://redis:6379
-      KAFKA_BROKER: kafka:9092
-    depends_on:
-      postgres-booking:
-        condition: service_healthy
-      movie-service:
-        condition: service_started
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-
-  payment-service:
-    build:
-      context: .
-      dockerfile: services/payment-service/Dockerfile
-    container_name: bms-payment-service
-    restart: unless-stopped
-    ports:
-      - "3004:3004"
-    environment:
-      PORT: 3004
-      DB_URL: postgresql://postgres:postgres@postgres-payment:5432/payment_db
-      KAFKA_BROKER: kafka:9092
-      RAZORPAY_KEY_ID: rzp_test_TIYa6hMlgmzRjF
-      RAZORPAY_KEY_SECRET: G7no8lJFpfFuMIsE9wAfHPVa
-    depends_on:
-      postgres-payment:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-
-  notification-service:
-    build:
-      context: .
-      dockerfile: services/notification-service/Dockerfile
-    container_name: bms-notification-service
-    restart: unless-stopped
-    environment:
-      KAFKA_BROKER: kafka:9092
-      SMTP_USER: "devashishkd111@gmail.com"
-      SMTP_PASS: "xobo cxoz kugt ptuj"
-      USER_SERVICE_URL: http://user-service:3001
-    depends_on:
-      kafka:
-        condition: service_started
-
-  api-gateway:
-    build:
-      context: .
-      dockerfile: services/api-gateway/Dockerfile
-    container_name: bms-api-gateway
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      PORT: 3000
-      USER_SERVICE_URL: http://user-service:3001
-      MOVIE_SERVICE_URL: http://movie-service:3002
-      BOOKING_SERVICE_URL: http://booking-service:3003
-      PAYMENT_SERVICE_URL: http://payment-service:3004
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      - user-service
-      - movie-service
-      - booking-service
-      - redis
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: bms-frontend
-    restart: unless-stopped
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/usr/src/app
-      - /usr/src/app/node_modules
-    environment:
-      - VITE_API_GATEWAY_URL=http://localhost:3000/api
-
 volumes:
-  postgres-user-data:
-  postgres-movie-data:
-  postgres-booking-data:
-  postgres-payment-data:
+  postgres-data:

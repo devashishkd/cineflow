@@ -1,16 +1,18 @@
 import express from 'express';
 import theatreController from './theatre.controller.js';
+import authMiddleware from '../../middleware/auth.middleware.js';
+import requireRole from '../../middleware/requireRole.middleware.js';
 
 const router = express.Router();
 
-// GET  /api/theatres         — list (optional ?city=)
-// GET  /api/theatres/cities  — unique cities
-// POST /api/theatres         — create
-
+// ── Public routes ─────────────────────────────────────────────────────────────
 // Static before dynamic
 router.get('/cities', theatreController.getCities);
+router.get('/',       theatreController.getAllTheatres);
 
-router.get('/',    theatreController.getAllTheatres);
-router.post('/',   theatreController.createTheatre);
+// ── Admin/Theatre-manager routes ──────────────────────────────────────────────
+router.post('/',      authMiddleware, requireRole('ADMIN', 'THEATRE_MANAGER'), theatreController.createTheatre);
+router.put('/:id',    authMiddleware, requireRole('ADMIN', 'THEATRE_MANAGER'), theatreController.updateTheatre);
+router.delete('/:id', authMiddleware, requireRole('ADMIN', 'THEATRE_MANAGER'), theatreController.deleteTheatre);
 
 export default router;

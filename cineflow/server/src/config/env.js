@@ -1,10 +1,8 @@
 /**
  * env.js — Validates required environment variables at startup.
- * Throws an error immediately if critical vars are missing so the
- * server fails fast with a clear message instead of at runtime.
  */
 
-const REQUIRED = ['DB_URL', 'JWT_SECRET'];
+const REQUIRED = ['DATABASE_URL', 'JWT_SECRET'];
 
 const OPTIONAL_WITH_WARNINGS = [
   { key: 'REDIS_URL',            warn: 'Rate limiting and caching will be disabled.' },
@@ -12,7 +10,7 @@ const OPTIONAL_WITH_WARNINGS = [
   { key: 'RAZORPAY_KEY_SECRET',  warn: 'Payment endpoints will not work.' },
   { key: 'SMTP_USER',            warn: 'Email notifications will be skipped.' },
   { key: 'SMTP_PASS',            warn: 'Email notifications will be skipped.' },
-  { key: 'KAFKA_BROKER',         warn: 'Analytics events will not be published to Kafka.' },
+
 ];
 
 export const validateEnv = () => {
@@ -32,4 +30,10 @@ export const validateEnv = () => {
   }
 
   console.log('[ENV] Environment validated ✅');
+};
+
+export default {
+  DATABASE_URL: process.env.DATABASE_URL,
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  PORT: process.env.PORT || 3000,
 };

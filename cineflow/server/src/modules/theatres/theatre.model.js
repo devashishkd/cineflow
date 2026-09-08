@@ -9,12 +9,27 @@ const Theatre = sequelize.define(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    name:         { type: DataTypes.STRING,  allowNull: false },
-    city:         { type: DataTypes.STRING,  allowNull: false },
-    address:      { type: DataTypes.TEXT },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      validate: {
+        notEmpty: true,
+      },
+    },
+    city: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      validate: {
+        notEmpty: true,
+      },
+    },
+    address: { type: DataTypes.TEXT },
     totalScreens: { type: DataTypes.INTEGER, defaultValue: 1 },
   },
-  { tableName: 'theatres', timestamps: true }
+  {
+    timestamps: true,
+    tableName: 'theatres',
+  }
 );
 
 export default Theatre;

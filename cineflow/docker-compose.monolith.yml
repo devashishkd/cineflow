@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────────────
+  # DATABASE (MongoDB)
+  # ─────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: cineflow-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────
+  # REDIS (Rate Limiting, Movie Cache, Seat Locks)
+  # ─────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: cineflow-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────
+  # KAFKA & ZOOKEEPER (Local Docker Kafka for Analytics)
+  # ─────────────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: cineflow-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: cineflow-kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  # ─────────────────────────────────────────────────
+  # MONOLITHIC BACKEND SERVER
+  # ─────────────────────────────────────────────────
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: cineflow-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      MONGODB_URI: mongodb://mongodb:27017/cineflow_db
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKER: kafka:29092
+      JWT_SECRET: super_secret_jwt_key_change_in_production
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_TIYa6hMlgmzRjF}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-G7no8lJFpfFuMIsE9wAfHPVa}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+  # ─────────────────────────────────────────────────
+  # FRONTEND (React / Vite)
+  # ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cineflow-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_GATEWAY_URL=http://localhost:3000/api
+    depends_on:
+      - server
+
+volumes:
+  mongodb-data:
+  redis-data:

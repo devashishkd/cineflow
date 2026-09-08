@@ -1,9 +1,6 @@
 import Payment from './payment.model.js';
 import paymentGateway from './razorpay.gateway.js';
 
-/**
- * Create a Razorpay order and upsert a local Payment record.
- */
 export const createOrder = async ({ bookingId, userId, amount, currency = 'INR' }) => {
   let payment = await Payment.findOne({ where: { bookingId } });
   if (!payment) {
@@ -13,14 +10,12 @@ export const createOrder = async ({ bookingId, userId, amount, currency = 'INR' 
   const receipt = `ro_${bookingId}`.substring(0, 40);
   const order   = await paymentGateway.createOrder({ amount, currency, receipt });
 
-  await payment.update({ transactionId: order.id });
+  payment.transactionId = order.id;
+  await payment.save();
 
   return { orderId: order.id, amount: order.amount, currency: order.currency };
 };
 
-/**
- * Verify the Razorpay signature and update the Payment record.
- */
 export const verifySignature = async ({ razorpay_order_id, razorpay_payment_id, razorpay_signature }) => {
   const isValid = paymentGateway.verifySignature({
     orderId:   razorpay_order_id,
@@ -31,9 +26,13 @@ export const verifySignature = async ({ razorpay_order_id, razorpay_payment_id, 
   const payment = await Payment.findOne({ where: { transactionId: razorpay_order_id } });
 
   if (isValid && payment) {
-    await payment.update({ status: 'COMPLETED', transactionId: razorpay_payment_id });
+    payment.status = 'COMPLETED';
+    payment.transactionId = razorpay_payment_id;
+    await payment.save();
   } else if (payment) {
-    await payment.update({ status: 'FAILED', failureReason: 'Signature verification failed' });
+    payment.status = 'FAILED';
+    payment.failureReason = 'Signature verification failed';
+    await payment.save();
   }
 
   return { isValid, payment };

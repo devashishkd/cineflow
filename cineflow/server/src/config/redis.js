@@ -1,11 +1,11 @@
 import Redis from 'ioredis';
 
-/**
- * Single shared Redis client for the entire monolith.
- * Used by: rate-limit middleware, movie/show cache, seat locking.
- */
+export const getRedisConnectionUrl = () =>
+  process.env.REDIS_URL || 'redis://localhost:6379';
+
 const createRedisClient = () => {
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  const redisUrl = getRedisConnectionUrl();
+  const useTls = redisUrl.startsWith('rediss://');
 
   const client = new Redis(redisUrl, {
     retryStrategy(times) {
@@ -14,12 +14,14 @@ const createRedisClient = () => {
     maxRetriesPerRequest: null,
     enableReadyCheck: true,
     lazyConnect: false,
+    ...(useTls && { tls: {} }),
   });
 
-  client.on('connect', () => console.log(`[Redis] Connected to ${redisUrl}`));
-  client.on('ready',   () => console.log('[Redis] Client ready'));
-  client.on('error',   (err) => console.error('[Redis] Error:', err.message));
-  client.on('close',   () => console.warn('[Redis] Connection closed'));
+  const logUrl = redisUrl.replace(/:([^:@/]+)@/, ':***@');
+  client.on('connect', () => console.log(`[Redis] Connected to ${logUrl}`));
+  client.on('ready', () => console.log('[Redis] Client ready'));
+  client.on('error', (err) => console.error('[Redis] Error:', err.message));
+  client.on('close', () => console.warn('[Redis] Connection closed'));
 
   return client;
 };

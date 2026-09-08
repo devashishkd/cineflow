@@ -1,55 +1,58 @@
+import { Op } from 'sequelize';
 import Show from './show.model.js';
 import Seat from './seat.model.js';
-import Movie from '../movies/movie.model.js';
 import Theatre from '../theatres/theatre.model.js';
+import Movie from '../movies/movie.model.js';
 import { getShowCache, setShowCache, invalidateShowCache } from '../movies/movie.cache.js';
+import { NotFoundError } from '../../utils/errors.js';
 
-/**
- * Get all shows for a movie (with optional theatre/city filter).
- */
 export const getShowsForMovie = async (movieId, filters = {}) => {
   const where = { movieId };
   if (filters.theatreId) where.theatreId = filters.theatreId;
 
-  const theatreWhere = {};
-  if (filters.city) theatreWhere.city = filters.city;
+  if (filters.city) {
+    const theatresInCity = await Theatre.findAll({
+      attributes: ['id'],
+      where: { city: { [Op.iLike]: filters.city } }
+    });
+    where.theatreId = { [Op.in]: theatresInCity.map(t => t.id) };
+  }
 
   return Show.findAll({
     where,
-    include: [{
-      model: Theatre,
-      as: 'theatre',
-      where: Object.keys(theatreWhere).length ? theatreWhere : undefined,
-      required: Object.keys(theatreWhere).length > 0,
-    }],
-    order: [['showDate', 'ASC'], ['showTime', 'ASC']],
+    include: [{ model: Theatre, as: 'theatre' }],
+    order: [['showDate', 'ASC'], ['showTime', 'ASC']]
   });
 };
 
-/**
- * Get a single show with full associations (movie, theatre, seats).
- * Result is cached in Redis.
- */
 export const getShowById = async (showId) => {
   const cached = await getShowCache(showId);
-  if (cached) return cached;
 
-  const show = await Show.findByPk(showId, {
-    include: [
-      { model: Movie,   as: 'movie' },
-      { model: Theatre, as: 'theatre' },
-      { model: Seat,    as: 'seats', order: [['seatNumber', 'ASC']] },
-    ],
+  let showMeta;
+  if (cached) {
+    showMeta = cached;
+  } else {
+    const show = await Show.findByPk(showId, {
+      include: [
+        { model: Movie, as: 'movie' },
+        { model: Theatre, as: 'theatre' }
+      ]
+    });
+
+    if (!show) throw new NotFoundError('Show not found');
+
+    showMeta = show.toJSON();
+    await setShowCache(showId, showMeta);
+  }
+
+  const seats = await Seat.findAll({
+    where: { showId },
+    order: [['seatNumber', 'ASC']]
   });
-  if (!show) throw new Error('Show not found');
 
-  await setShowCache(showId, show);
-  return show;
+  return { ...showMeta, seats };
 };
 
-/**
- * Create a show and auto-generate 50 seats (5 rows × 10).
- */
 export const createShow = async (data) => {
   const show = await Show.create(data);
 
@@ -57,7 +60,12 @@ export const createShow = async (data) => {
   const seatsToCreate = [];
   rows.forEach((row) => {
     for (let i = 1; i <= 10; i++) {
-      seatsToCreate.push({ showId: show.id, seatNumber: `${row}${i}`, row, status: 'AVAILABLE' });
+      seatsToCreate.push({
+        showId: show.id,
+        seatNumber: `${row}${i}`,
+        row,
+        status: 'AVAILABLE',
+      });
     }
   });
 
@@ -65,29 +73,68 @@ export const createShow = async (data) => {
   return show;
 };
 
-/**
- * Get all seats for a show.
- */
 export const getSeatsByShow = async (showId) => {
-  return Seat.findAll({ where: { showId }, order: [['seatNumber', 'ASC']] });
+  return Seat.findAll({
+    where: { showId },
+    order: [['seatNumber', 'ASC']]
+  });
 };
 
-/**
- * Update seat status (called internally by payment.controller after payment confirmed).
- * Busts the show cache so the next request reflects updated seat availability.
- */
-export const updateSeatStatus = async (seatIds, status) => {
-  const [affectedRows] = await Seat.update({ status }, { where: { id: seatIds } });
+export const updateSeatStatus = async (seatIds, newStatus, expectedCurrentStatus = null) => {
+  const where = { id: { [Op.in]: seatIds } };
+  
+  if (expectedCurrentStatus) {
+    where.status = expectedCurrentStatus; // compare-and-swap
+  }
 
-  if (affectedRows > 0) {
-    const seats = await Seat.findAll({ where: { id: seatIds }, attributes: ['showId'] });
-    const showIds = [...new Set(seats.map((s) => s.showId))];
-    for (const showId of showIds) {
-      await invalidateShowCache(showId);
+  const [modifiedCount] = await Seat.update(
+    { status: newStatus },
+    { where }
+  );
+
+  if (modifiedCount > 0) {
+    const seats = await Seat.findAll({
+      attributes: ['showId'],
+      where: { id: { [Op.in]: seatIds } },
+      group: ['showId']
+    });
+    for (const seat of seats) {
+      await invalidateShowCache(seat.showId);
     }
   }
 
-  return affectedRows;
+  console.log(`[Show] Seat status update: ${modifiedCount}/${seatIds.length} seats → ${newStatus}${expectedCurrentStatus ? ` (was ${expectedCurrentStatus})` : ''}`);
+  return modifiedCount;
 };
 
-export default { getShowsForMovie, getShowById, createShow, getSeatsByShow, updateSeatStatus };
+
+export const updateShow = async (id, data) => {
+  const [updatedCount, [show]] = await Show.update(data, { where: { id }, returning: true });
+  if (updatedCount === 0) throw new NotFoundError('Show not found');
+  await invalidateShowCache(id);
+  return show;
+};
+
+export const deleteShow = async (id) => {
+  const deletedCount = await Show.destroy({ where: { id } });
+  if (deletedCount === 0) throw new NotFoundError('Show not found');
+  await invalidateShowCache(id);
+  return { id };
+};
+
+export const getAllShows = async (filters = {}) => {
+  const where = {};
+  if (filters.movieId) where.movieId = filters.movieId;
+  if (filters.theatreId) where.theatreId = filters.theatreId;
+  return Show.findAll({
+    where,
+    include: [
+      { model: Movie, as: 'movie', attributes: ['id', 'title'] },
+      { model: Theatre, as: 'theatre', attributes: ['id', 'name', 'city'] },
+    ],
+    order: [['showDate', 'DESC'], ['showTime', 'ASC']],
+    limit: 200,
+  });
+};
+
+export default { getShowsForMovie, getShowById, createShow, getSeatsByShow, updateSeatStatus, updateShow, deleteShow, getAllShows };
