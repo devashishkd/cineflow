@@ -11,7 +11,22 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
     if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsed = JSON.parse(storedUser);
+        // MongoDB ObjectIds are 24-char hex strings. If it's a legacy PostgreSQL UUID, clear it!
+        if (parsed.id && !/^[0-9a-fA-F]{24}$/.test(parsed.id)) {
+          console.warn('[Auth] Purging legacy PostgreSQL UUID session');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+        } else {
+          setUser(parsed);
+        }
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+      }
     }
     setLoading(false);
   }, []);

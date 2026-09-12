@@ -54,26 +54,8 @@ const CityModal = () => {
               <div className="w-6 h-6 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
               Loading cities...
             </div>
-          ) : cities.length === 0 ? (
-            <div className="text-center py-8 text-zinc-400 text-sm">
-              <p>No cities available.</p>
-              <button onClick={() => changeCity('All Cities')} className="mt-4 px-4 py-2 border border-zinc-700 text-zinc-200 rounded-lg hover:bg-zinc-800 transition-all text-xs font-semibold">
-                Continue with 'All Cities'
-              </button>
-            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              <button
-                onClick={() => changeCity('All Cities')}
-                className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all ${
-                  selectedCity === 'All Cities' || (!selectedCity && canClose)
-                    ? 'border-white bg-white text-zinc-950 font-bold' 
-                    : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 text-zinc-300 font-medium'
-                }`}
-              >
-                <span className="text-xs">All Cities</span>
-              </button>
-              
               {cities.map(city => (
                 <button
                   key={city}

@@ -1,35 +1,34 @@
-import { DataTypes } from 'sequelize';
-import sequelize from '../../config/db.js';
+import mongoose from 'mongoose';
 
-const Theatre = sequelize.define(
-  'Theatre',
+const theatreSchema = new mongoose.Schema(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
     name: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
+      type: String,
+      required: [true, 'Theatre name is required'],
+      trim: true,
     },
     city: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
+      type: String,
+      required: [true, 'City is required'],
+      trim: true,
     },
-    address: { type: DataTypes.TEXT },
-    totalScreens: { type: DataTypes.INTEGER, defaultValue: 1 },
+    address:      { type: String },
+    totalScreens: { type: Number, default: 1 },
   },
   {
     timestamps: true,
-    tableName: 'theatres',
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret) => {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
   }
 );
+
+const Theatre = mongoose.model('Theatre', theatreSchema);
 
 export default Theatre;

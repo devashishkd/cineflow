@@ -301,7 +301,7 @@ const AdminDashboard = () => {
         showNotification('Show updated successfully.');
       } else {
         await api.post('/shows', showForm);
-        showNotification('Show created successfully with 50 seats generated.');
+        showNotification('Show created successfully with 100 seats generated.');
       }
       setShowModalOpen(false);
       fetchShows();
@@ -340,7 +340,7 @@ const AdminDashboard = () => {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2.5 text-white tracking-tight">
             <Layers className="text-zinc-400 w-6 h-6" />
-            Admin Management Portal
+            Admin  Management Portal
           </h1>
           <p className="text-zinc-400 text-xs mt-1">Manage movies, theatres, show schedules, bookings, and analytics.</p>
         </div>
@@ -418,29 +418,71 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Daily Revenue Chart */}
                 <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 p-6 rounded-xl space-y-4">
-                  <h2 className="text-sm font-semibold flex items-center gap-2 text-white">
-                    <TrendingUp className="w-4 h-4 text-zinc-400" />
-                    Daily Revenue (Last 30 Days)
-                  </h2>
-                  <div className="h-44 flex items-end gap-1.5 pt-2">
-                    {dashboardData.dailyRevenue?.length === 0 ? (
-                      <div className="w-full text-center text-zinc-500 text-xs">No revenue data recorded yet.</div>
-                    ) : (
-                      dashboardData.dailyRevenue?.map((day, i) => {
-                        const maxRevenue = Math.max(...dashboardData.dailyRevenue.map((d) => parseFloat(d.revenue || 0)));
-                        const height = maxRevenue > 0 ? (parseFloat(day.revenue || 0) / maxRevenue) * 100 : 0;
-                        return (
-                          <div key={i} className="flex-1 flex flex-col justify-end items-center group relative h-full">
-                            <div className="opacity-0 group-hover:opacity-100 absolute -top-8 bg-zinc-950 px-2 py-1 rounded text-[10px] whitespace-nowrap transition-opacity border border-zinc-700 z-10 text-white">
-                              ₹{day.revenue} <br />
-                              <span className="text-zinc-400">{new Date(day.date).toLocaleDateString()}</span>
-                            </div>
-                            <div className="w-full bg-zinc-400 hover:bg-white rounded-t-sm transition-all" style={{ height: `${Math.max(4, height)}%` }} />
-                          </div>
-                        );
-                      })
-                    )}
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold flex items-center gap-2 text-white">
+                      <TrendingUp className="w-4 h-4 text-zinc-400" />
+                      Daily Revenue (Last 14 Days)
+                    </h2>
+                    <span className="text-xs text-zinc-400 font-medium">
+                      Total: <span className="text-white font-semibold">₹{dashboardData.summary?.total_revenue || 0}</span>
+                    </span>
                   </div>
+
+                  {(() => {
+                    const daysToShow = 14;
+                    const chartDays = Array.from({ length: daysToShow }, (_, idx) => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - (daysToShow - 1 - idx));
+                      const dateStr = d.toISOString().split('T')[0];
+                      const match = dashboardData.dailyRevenue?.find((item) => item.date === dateStr);
+                      return {
+                        date: dateStr,
+                        label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                        dayNum: d.getDate(),
+                        revenue: match ? parseFloat(match.revenue || 0) : 0,
+                        bookings: match ? match.bookings || 0 : 0,
+                      };
+                    });
+
+                    const maxRevenue = Math.max(...chartDays.map((d) => d.revenue), 100);
+
+                    return (
+                      <div className="space-y-2">
+                        <div className="h-44 flex items-end gap-2 pt-6 px-1">
+                          {chartDays.map((day, i) => {
+                            const pct = day.revenue > 0 ? (day.revenue / maxRevenue) * 100 : 0;
+                            const hasSales = day.revenue > 0;
+                            return (
+                              <div key={i} className="flex-1 flex flex-col justify-end items-center group relative h-full">
+                                {/* Tooltip */}
+                                <div className="opacity-0 group-hover:opacity-100 pointer-events-none absolute -top-10 bg-zinc-950 px-2.5 py-1 rounded-md text-[10px] whitespace-nowrap transition-opacity border border-zinc-700 z-20 text-white shadow-xl flex flex-col items-center">
+                                  <span className="font-semibold text-emerald-400">₹{day.revenue.toFixed(2)}</span>
+                                  <span className="text-zinc-400 text-[9px]">{day.label} {day.bookings > 0 ? `(${day.bookings} ${day.bookings === 1 ? 'booking' : 'bookings'})` : ''}</span>
+                                </div>
+                                {/* Bar */}
+                                <div
+                                  className={`w-full max-w-[28px] rounded-t transition-all duration-300 ${
+                                    hasSales
+                                      ? 'bg-emerald-500 group-hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
+                                      : 'bg-zinc-800/80 group-hover:bg-zinc-700'
+                                  }`}
+                                  style={{ height: hasSales ? `${Math.max(12, pct)}%` : '4px' }}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* X-axis dates */}
+                        <div className="flex gap-2 px-1 border-t border-zinc-800/60 pt-2">
+                          {chartDays.map((day, i) => (
+                            <div key={i} className="flex-1 text-center text-[10px] text-zinc-500 truncate">
+                              {i % 2 === 0 || i === chartDays.length - 1 ? day.dayNum : ''}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Status Breakdown */}
@@ -711,7 +753,7 @@ const AdminDashboard = () => {
                         {new Date(b.createdAt).toLocaleDateString()}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        {b.status === 'CONFIRMED' && (
+                        {['CONFIRMED', 'PENDING', 'PAYMENT_INITIATED'].includes(b.status) && (
                           <button
                             onClick={() => handleCancelBooking(b.id)}
                             className="px-2.5 py-1 bg-red-950/80 hover:bg-red-900 text-red-300 rounded border border-red-800 text-[11px] font-medium transition-colors"

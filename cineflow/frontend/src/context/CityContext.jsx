@@ -23,14 +23,11 @@ export const CityProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Load saved city from localStorage or default to Mumbai / first
+    // Load saved city from localStorage; if none, keep empty to force selection
     const saved = localStorage.getItem('selectedCity');
     if (saved) {
       setSelectedCity(saved);
-    } else {
-      setSelectedCity('Mumbai');
     }
-
     fetchCities();
   }, []);
 

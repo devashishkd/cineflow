@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { ChevronLeft, Film, Clock, MapPin, Calendar, Timer } from 'lucide-react';
+import { ChevronLeft, Film, Clock, MapPin, Calendar, Timer, AlertTriangle, X } from 'lucide-react';
 
 /** Format seconds as MM:SS */
 const formatCountdown = (secs) => {
@@ -25,6 +25,50 @@ const SeatSelection = () => {
   // Countdown timer — seconds remaining until seat lock expires
   const [lockSecondsLeft, setLockSecondsLeft] = useState(null);
   const [lockExpiresAt, setLockExpiresAt] = useState(null);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const isExitingRef = useRef(false);
+
+  // Handle in-page back click
+  const handleBackClick = () => {
+    if (selectedSeats.length > 0) {
+      setShowExitModal(true);
+    } else {
+      if (show?.movieId || show?.movie?.id) {
+        navigate(`/movie/${show.movieId || show.movie.id}`);
+      } else {
+        navigate(-1);
+      }
+    }
+  };
+
+  // Intercept browser back button when seats are selected
+  useEffect(() => {
+    const hasSeats = selectedSeats.length > 0;
+    if (!hasSeats) return;
+
+    window.history.pushState({ seatSelection: true }, '');
+
+    const handlePopState = () => {
+      if (isExitingRef.current) return;
+      window.history.pushState({ seatSelection: true }, '');
+      setShowExitModal(true);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [selectedSeats.length > 0]);
+
+  const handleConfirmExit = () => {
+    isExitingRef.current = true;
+    setShowExitModal(false);
+    if (show?.movieId || show?.movie?.id) {
+      navigate(`/movie/${show.movieId || show.movie.id}`, { replace: true });
+    } else {
+      navigate(-1);
+    }
+  };
 
   useEffect(() => {
     const fetchSeats = async () => {
@@ -82,7 +126,12 @@ const SeatSelection = () => {
         }
       });
     } catch (error) {
-      setBookingError(error.response?.data?.message || 'Failed to initiate booking');
+      if (error.response?.status === 401) {
+        setBookingError('Your session has expired. Please log in again to book tickets.');
+        setTimeout(() => navigate('/login'), 1200);
+      } else {
+        setBookingError(error.response?.data?.message || 'Failed to initiate booking');
+      }
       setIsBooking(false);
     }
   };
@@ -120,9 +169,9 @@ const SeatSelection = () => {
   const showTime = show?.showTime?.slice(0, 5) || '';
 
   return (
-    <div className="max-w-5xl mx-auto w-full px-4 py-8 flex flex-col bg-zinc-950">
+    <div className="max-w-6xl mx-auto w-full px-4 py-8 flex flex-col bg-zinc-950">
       {/* Back button */}
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-zinc-400 hover:text-white mb-6 transition-colors text-xs font-medium">
+      <button onClick={handleBackClick} className="flex items-center gap-1 text-zinc-400 hover:text-white mb-6 transition-colors text-xs font-medium">
         <ChevronLeft className="w-4 h-4" /> Back
       </button>
 
@@ -189,8 +238,8 @@ const SeatSelection = () => {
       </div>
 
       {/* Seat Grid — fixed positions */}
-      <div className="overflow-x-auto pt-2 pb-4 mb-6">
-        <div className="inline-block min-w-full">
+      <div className="overflow-x-auto pt-2 pb-4 mb-6 flex justify-center">
+        <div className="inline-block">
           {sortedRows.map(row => (
             <div key={row} className="flex items-center gap-2 mb-2">
               {/* Row label */}
@@ -272,6 +321,37 @@ const SeatSelection = () => {
           </button>
         </div>
       </div>
+
+      {/* Exit Confirmation Modal */}
+      {showExitModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-white">Leave Seat Selection?</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                You have selected <span className="text-white font-semibold">{selectedSeats.length} seat{selectedSeats.length > 1 ? 's' : ''}</span>. Leaving now will release your selected seats.
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-2">
+              <button
+                onClick={handleConfirmExit}
+                className="flex-1 py-2.5 px-3 rounded-lg border border-zinc-700 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold transition-colors"
+              >
+                Discard & Leave
+              </button>
+              <button
+                onClick={() => setShowExitModal(false)}
+                className="flex-1 py-2.5 px-3 rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 text-xs font-bold transition-colors shadow-sm"
+              >
+                Keep My Seats
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

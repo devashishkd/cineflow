@@ -20,4 +20,16 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Add a response interceptor to clear stale auth credentials on 401
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

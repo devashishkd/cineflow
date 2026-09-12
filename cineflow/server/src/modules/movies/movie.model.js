@@ -1,36 +1,37 @@
-import { DataTypes } from 'sequelize';
-import sequelize from '../../config/db.js';
+import mongoose from 'mongoose';
 
-const Movie = sequelize.define(
-  'Movie',
+const movieSchema = new mongoose.Schema(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
     title: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
+      type: String,
+      required: [true, 'Title is required'],
+      trim: true,
     },
-    description: { type: DataTypes.TEXT },
-    genre:       { type: DataTypes.STRING },
-    language:    { type: DataTypes.STRING, defaultValue: 'English' },
-    releaseDate: { type: DataTypes.DATEONLY }, // YYYY-MM-DD
-    cast:        { type: DataTypes.TEXT },
-    director:    { type: DataTypes.STRING },
-    producer:    { type: DataTypes.STRING },
-    duration:    { type: DataTypes.INTEGER }, // minutes
-    posterUrl:   { type: DataTypes.STRING },
-    rating:      { type: DataTypes.FLOAT, defaultValue: 0 },
+    description: { type: String },
+    genre:       { type: String },
+    language:    { type: String, default: 'English' },
+    releaseDate: { type: String }, // YYYY-MM-DD string (kept compatible with existing data)
+    cast:        { type: String },
+    director:    { type: String },
+    producer:    { type: String },
+    duration:    { type: Number }, // minutes
+    posterUrl:   { type: String },
+    rating:      { type: Number, default: 0 },
   },
   {
     timestamps: true,
-    tableName: 'movies',
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret) => {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
   }
 );
+
+const Movie = mongoose.model('Movie', movieSchema);
 
 export default Movie;

@@ -41,13 +41,15 @@ const MyBookings = () => {
   const handleDownloadPdf = async (bId) => {
     try {
       const response = await api.get(`/bookings/${bId}/pdf`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `ticket-${bId.slice(0, 8)}.pdf`);
+      link.setAttribute('download', `ticket-${String(bId).slice(0, 8)}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch {
       alert('Failed to download PDF. Please try again later.');
     }

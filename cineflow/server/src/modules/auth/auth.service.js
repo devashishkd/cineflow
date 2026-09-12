@@ -11,12 +11,12 @@ import { ConflictError, NotFoundError, AuthError } from '../../utils/errors.js';
  * low enough for good UX. Cost 12+ is used for high-security systems.
  */
 export const register = async ({ name, email, password, role = 'USER' }) => {
-  const existing = await User.findOne({ where: { email: email.toLowerCase() } });
+  const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) throw new ConflictError('An account with this email already exists');
 
   const allowedRoles = ['USER', 'ADMIN', 'THEATRE_MANAGER'];
   const normalizedRole = allowedRoles.includes(role) ? role : 'USER';
-  
+
   const passwordHash = await bcrypt.hash(password, 10);
 
   const user = await User.create({
@@ -26,7 +26,7 @@ export const register = async ({ name, email, password, role = 'USER' }) => {
     role: normalizedRole,
   });
 
-  return { id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt };
+  return { id: user._id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt };
 };
 
 /**
@@ -38,8 +38,8 @@ export const register = async ({ name, email, password, role = 'USER' }) => {
  * Alternative: opaque session token + DB lookup on every request.
  */
 export const login = async ({ email, password }) => {
-  // Use 'withPassword' scope to include passwordHash for verification
-  const user = await User.scope('withPassword').findOne({ where: { email: email.toLowerCase() } });
+  // Select passwordHash explicitly (excluded by default via select: false)
+  const user = await User.findOne({ email: email.toLowerCase() }).select('+passwordHash');
 
   // Same error for "user not found" and "wrong password" — prevents user enumeration
   if (!user) throw new AuthError('Invalid email or password');
@@ -49,7 +49,7 @@ export const login = async ({ email, password }) => {
 
   const token = jwt.sign(
     {
-      userId: user.id,
+      userId: user._id,
       email:  user.email,
       name:   user.name,
       role:   user.role,         // ← role embedded in JWT
@@ -60,7 +60,7 @@ export const login = async ({ email, password }) => {
 
   return {
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: { id: user._id, name: user.name, email: user.email, role: user.role },
   };
 };
 
@@ -68,7 +68,7 @@ export const login = async ({ email, password }) => {
  * Get user profile by userId.
  */
 export const getProfile = async (userId) => {
-  const user = await User.findByPk(userId);
+  const user = await User.findById(userId);
   if (!user) throw new NotFoundError('User not found');
   return user;
 };

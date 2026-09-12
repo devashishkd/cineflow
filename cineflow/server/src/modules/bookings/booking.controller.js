@@ -58,10 +58,11 @@ export const getUserBookings = asyncHandler(async (req, res) => {
  */
 export const cancelBooking = asyncHandler(async (req, res) => {
   const { reason } = req.body;
+  const isAdmin = req.user.role === 'ADMIN' || req.user.role === 'THEATRE_MANAGER';
   const booking = await bookingService.cancelBooking(
     req.params.id,
-    req.user.userId,
-    reason || 'User requested cancellation'
+    isAdmin ? null : req.user.userId,
+    reason || (isAdmin ? 'Cancelled by administrator' : 'User requested cancellation')
   );
   res.json({ success: true, message: 'Booking cancelled successfully', data: booking });
 });
@@ -71,7 +72,9 @@ export const cancelBooking = asyncHandler(async (req, res) => {
  * Generate and stream a PDF ticket for a CONFIRMED booking.
  */
 export const generatePdfTicket = asyncHandler(async (req, res) => {
-  const booking = await bookingService.getBookingById(req.params.id, req.user.userId);
+  const userId = req.user?.userId || req.user?.id;
+  const role = req.user?.role;
+  const booking = await bookingService.getBookingById(req.params.id, userId, role);
 
   if (booking.status !== 'CONFIRMED') {
     throw new ValidationError('PDF ticket is only available for confirmed bookings');

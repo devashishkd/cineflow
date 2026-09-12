@@ -1,7 +1,4 @@
-import { DataTypes } from 'sequelize';
-import sequelize from '../../config/db.js';
-import User from '../auth/user.model.js';
-import Show from '../shows/show.model.js';
+import mongoose from 'mongoose';
 
 export const BOOKING_STATUS = {
   PENDING:            'PENDING',
@@ -15,78 +12,68 @@ export const BOOKING_STATUS = {
 
 export const VALID_TRANSITIONS = {
   [BOOKING_STATUS.PENDING]:           [BOOKING_STATUS.PAYMENT_INITIATED, BOOKING_STATUS.EXPIRED, BOOKING_STATUS.CANCELLED],
-  [BOOKING_STATUS.PAYMENT_INITIATED]: [BOOKING_STATUS.PAYMENT_SUCCESS, BOOKING_STATUS.PAYMENT_FAILED],
+  [BOOKING_STATUS.PAYMENT_INITIATED]: [BOOKING_STATUS.PAYMENT_SUCCESS, BOOKING_STATUS.PAYMENT_FAILED, BOOKING_STATUS.CANCELLED, BOOKING_STATUS.EXPIRED],
   [BOOKING_STATUS.PAYMENT_SUCCESS]:   [BOOKING_STATUS.CONFIRMED],
-  [BOOKING_STATUS.PAYMENT_FAILED]:    [BOOKING_STATUS.PENDING],
+  [BOOKING_STATUS.PAYMENT_FAILED]:    [BOOKING_STATUS.PENDING, BOOKING_STATUS.CANCELLED, BOOKING_STATUS.EXPIRED],
   [BOOKING_STATUS.CONFIRMED]:         [BOOKING_STATUS.CANCELLED],
   [BOOKING_STATUS.EXPIRED]:           [],
   [BOOKING_STATUS.CANCELLED]:         [],
 };
 
-const Booking = sequelize.define(
-  'Booking',
+const bookingSchema = new mongoose.Schema(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
     userId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      references: { model: User, key: 'id' },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
     },
     showId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      references: { model: Show, key: 'id' },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Show',
+      required: true,
     },
-    // PostgreSQL array for simple one-to-many embedding without a junction table
+    // Native MongoDB arrays — replaces PostgreSQL ARRAY(UUID) / ARRAY(STRING)
     seatIds: {
-      type: DataTypes.ARRAY(DataTypes.UUID),
-      allowNull: false,
+      type: [mongoose.Schema.Types.ObjectId],
+      required: true,
     },
     seatNumbers: {
-      type: DataTypes.ARRAY(DataTypes.STRING),
-      allowNull: false,
+      type: [String],
+      required: true,
     },
     totalAmount: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
+      type: Number,
+      required: true,
     },
     status: {
-      type: DataTypes.ENUM(Object.values(BOOKING_STATUS)),
-      defaultValue: BOOKING_STATUS.PENDING,
-      allowNull: false,
+      type: String,
+      enum: Object.values(BOOKING_STATUS),
+      default: BOOKING_STATUS.PENDING,
+      required: true,
     },
     idempotencyKey: {
-      type: DataTypes.STRING,
+      type: String,
       unique: true,
-      allowNull: true,
+      sparse: true, // allows multiple null values
     },
-    cancelledAt: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
-    cancellationReason: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    expiresAt: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
+    cancelledAt: { type: Date, default: null },
+    cancellationReason: { type: String, default: null },
+    expiresAt: { type: Date, default: null },
   },
   {
     timestamps: true,
-    tableName: 'bookings',
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret) => {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
   }
 );
 
-Booking.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-User.hasMany(Booking, { foreignKey: 'userId', as: 'bookings' });
-
-Booking.belongsTo(Show, { foreignKey: 'showId', as: 'show' });
-Show.hasMany(Booking, { foreignKey: 'showId', as: 'bookings' });
+const Booking = mongoose.model('Booking', bookingSchema);
 
 export default Booking;

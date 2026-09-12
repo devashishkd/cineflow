@@ -1,5 +1,6 @@
 import paymentService from './payment.service.js';
 import bookingService from '../bookings/booking.service.js';
+import Booking from '../bookings/booking.model.js';
 import showService from '../shows/show.service.js';
 import seatLockService from '../bookings/seat-lock.service.js';
 import notificationService from '../notifications/notification.service.js';
@@ -16,16 +17,28 @@ import { ValidationError } from '../../utils/errors.js';
  */
 export const createOrder = asyncHandler(async (req, res) => {
   const { bookingId, amount, currency = 'INR' } = req.body;
-  const userId = req.user.userId; // ← JWT, never from body
+  const userId = req.user?.userId; // ← JWT, never from body
 
   if (!bookingId || !amount) {
     throw new ValidationError('bookingId and amount are required');
   }
 
-  // Transition to PAYMENT_INITIATED — signals user has opened the gateway
-  // This prevents the booking from being expired by a background job while
-  // the user is actively in the payment flow.
-  await bookingService.initiatePayment(bookingId);
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    throw new ValidationError('Booking not found');
+  }
+  if (booking.status === 'CONFIRMED') {
+    return res.status(400).json({
+      success: false,
+      message: 'This booking has already been paid for and confirmed. Check your downloaded ticket or My Bookings.',
+      isAlreadyConfirmed: true,
+    });
+  }
+
+  // Transition to PAYMENT_INITIATED if still PENDING
+  if (booking.status === 'PENDING') {
+    await bookingService.initiatePayment(bookingId);
+  }
 
   const orderData = await paymentService.createOrder({ bookingId, userId, amount, currency });
 
@@ -66,7 +79,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     amount,
   } = req.body;
 
-  const userId = req.user.userId; // ← always from JWT
+  const userId = req.user?.userId; // ← always from JWT
 
   const { isValid } = await paymentService.verifySignature({
     razorpay_order_id,

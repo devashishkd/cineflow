@@ -1,5 +1,4 @@
-import { Op } from 'sequelize';
-import sequelize from '../../config/db.js';
+import mongoose from 'mongoose';
 import Booking, { BOOKING_STATUS, VALID_TRANSITIONS } from './booking.model.js';
 import seatLockService from './seat-lock.service.js';
 import showService from '../shows/show.service.js';
@@ -10,14 +9,14 @@ const LOCK_TTL_SECONDS = 600;
 
 /**
  * Transition a booking to a new status, enforcing the state machine.
- * Uses optimistic locking: where clause includes the expected fromStatus.
+ * Uses optimistic locking: findOneAndUpdate with expected fromStatus in filter.
  */
-export const transitionBooking = async (bookingId, toStatus, extraFields = {}, transaction = null) => {
-  const booking = await Booking.findByPk(bookingId, { transaction });
+export const transitionBooking = async (bookingId, toStatus, extraFields = {}, session = null) => {
+  const booking = await Booking.findById(bookingId).session(session);
   if (!booking) throw new NotFoundError(`Booking ${bookingId} not found`);
 
   const fromStatus = booking.status;
-  const allowed = VALID_TRANSITIONS[fromStatus] || [];
+  const allowed    = VALID_TRANSITIONS[fromStatus] || [];
 
   if (!allowed.includes(toStatus)) {
     throw new ValidationError(
@@ -25,17 +24,14 @@ export const transitionBooking = async (bookingId, toStatus, extraFields = {}, t
     );
   }
 
-  // Optimistic lock
-  const [updatedCount, [updatedBooking]] = await Booking.update(
-    { status: toStatus, ...extraFields },
-    { 
-      where: { id: bookingId, status: fromStatus },
-      returning: true,
-      transaction 
-    }
+  // Optimistic lock: only update if current status still matches
+  const updatedBooking = await Booking.findOneAndUpdate(
+    { _id: bookingId, status: fromStatus },
+    { $set: { status: toStatus, ...extraFields } },
+    { new: true, session }
   );
 
-  if (updatedCount === 0) {
+  if (!updatedBooking) {
     throw new ConflictError(
       `Booking ${bookingId} was already updated by a concurrent request. Please refresh.`
     );
@@ -47,14 +43,14 @@ export const transitionBooking = async (bookingId, toStatus, extraFields = {}, t
 
 /**
  * Create a PENDING booking.
- * 
+ *
  * 1. Lock seats atomically in Redis
- * 2. Validate in Postgres (inside transaction)
+ * 2. Validate in MongoDB (inside a session/transaction)
  * 3. Create Booking
  */
 export const createBooking = async ({ userId, showId, seatIds, idempotencyKey }) => {
   if (idempotencyKey) {
-    const existing = await Booking.findOne({ where: { idempotencyKey } });
+    const existing = await Booking.findOne({ idempotencyKey });
     if (existing) {
       console.log(`[Booking] Idempotent hit for key ${idempotencyKey}`);
       return existing;
@@ -65,40 +61,43 @@ export const createBooking = async ({ userId, showId, seatIds, idempotencyKey })
   await seatLockService.lockSeats(seatIds, userId, LOCK_TTL_SECONDS);
 
   try {
-    // Postgres Transaction to ensure data consistency when validating and inserting
-    const booking = await sequelize.transaction(async (t) => {
+    const session = await mongoose.startSession();
+    let booking;
+
+    await session.withTransaction(async () => {
       const show = await showService.getShowById(showId); // includes seats
 
-      const allShowSeatIds = show.seats.map((s) => s.id);
-      const invalidSeats = seatIds.filter((id) => !allShowSeatIds.includes(id));
+      const allShowSeatIds = show.seats.map((s) => s._id.toString());
+      const invalidSeats   = seatIds.filter((id) => !allShowSeatIds.includes(id.toString()));
       if (invalidSeats.length > 0) {
         throw new ValidationError(`Seats [${invalidSeats.join(', ')}] do not belong to show ${showId}`);
       }
 
-      const selectedSeats = show.seats.filter((s) => seatIds.includes(s.id));
-      const unavailable = selectedSeats.filter((s) => s.status !== 'AVAILABLE');
+      const selectedSeats = show.seats.filter((s) => seatIds.map(String).includes(s._id.toString()));
+      const unavailable   = selectedSeats.filter((s) => s.status !== 'AVAILABLE');
       if (unavailable.length > 0) {
         const taken = unavailable.map((s) => s.seatNumber).join(', ');
         throw new ConflictError(`Seats already taken: ${taken}. Please select different seats.`);
       }
 
       const pricePerSeat = parseFloat(show.price);
-      const totalAmount = pricePerSeat * selectedSeats.length;
-      const seatNumbers = selectedSeats.map((s) => s.seatNumber);
-      const expiresAt = new Date(Date.now() + LOCK_TTL_SECONDS * 1000);
+      const totalAmount  = pricePerSeat * selectedSeats.length;
+      const seatNumbers  = selectedSeats.map((s) => s.seatNumber);
+      const expiresAt    = new Date(Date.now() + LOCK_TTL_SECONDS * 1000);
 
-      return await Booking.create({
+      [booking] = await Booking.create([{
         userId,
         showId,
         seatIds,
         seatNumbers,
         totalAmount,
         status: BOOKING_STATUS.PENDING,
-        idempotencyKey: idempotencyKey || null,
+        idempotencyKey: idempotencyKey || undefined,
         expiresAt,
-      }, { transaction: t });
+      }], { session });
     });
 
+    await session.endSession();
     return booking;
   } catch (err) {
     // Rollback Redis locks if DB transaction fails
@@ -111,32 +110,42 @@ export const initiatePayment = (bookingId) => transitionBooking(bookingId, BOOKI
 export const markPaymentSuccess = (bookingId) => transitionBooking(bookingId, BOOKING_STATUS.PAYMENT_SUCCESS);
 
 export const confirmBooking = async (bookingId) => {
-  return await sequelize.transaction(async (t) => {
-    const booking = await transitionBooking(bookingId, BOOKING_STATUS.CONFIRMED, {}, t);
+  const session = await mongoose.startSession();
+  let result;
+  await session.withTransaction(async () => {
+    const booking = await transitionBooking(bookingId, BOOKING_STATUS.CONFIRMED, {}, session);
     // Mark seats as BOOKED in DB
     await showService.updateSeatStatus(booking.seatIds, 'BOOKED');
-    return booking;
+    result = booking;
   });
+  await session.endSession();
+  return result;
 };
 
-export const failBooking = (bookingId) => transitionBooking(bookingId, BOOKING_STATUS.PAYMENT_FAILED);
+export const failBooking   = (bookingId) => transitionBooking(bookingId, BOOKING_STATUS.PAYMENT_FAILED);
 export const expireBooking = (bookingId) => transitionBooking(bookingId, BOOKING_STATUS.EXPIRED);
 
 export const cancelBooking = async (bookingId, userId, reason = 'User requested cancellation') => {
-  const booking = await Booking.findOne({ where: { id: bookingId, userId } });
+  const filter = { _id: bookingId };
+  if (userId) filter.userId = userId;
+
+  const booking = await Booking.findOne(filter);
   if (!booking) throw new NotFoundError('Booking not found or does not belong to you');
 
-  // Postgres Transaction for multi-table update
-  const updatedBooking = await sequelize.transaction(async (t) => {
-    const updated = await transitionBooking(bookingId, BOOKING_STATUS.CANCELLED, {
+  const session = await mongoose.startSession();
+  let updatedBooking;
+
+  await session.withTransaction(async () => {
+    updatedBooking = await transitionBooking(bookingId, BOOKING_STATUS.CANCELLED, {
       cancelledAt: new Date(),
       cancellationReason: reason,
-    }, t);
+    }, session);
 
-    // Release seats in DB back to AVAILABLE if they were BOOKED
+    // Release seats back to AVAILABLE if they were BOOKED
     await showService.updateSeatStatus(booking.seatIds, 'AVAILABLE', 'BOOKED');
-    return updated;
   });
+
+  await session.endSession();
 
   // Release Redis locks
   await seatLockService.releaseSeats(booking.seatIds);
@@ -145,39 +154,40 @@ export const cancelBooking = async (bookingId, userId, reason = 'User requested 
   return updatedBooking;
 };
 
-export const getBookingById = async (bookingId, userId) => {
-  const booking = await Booking.findOne({ where: { id: bookingId, userId } });
+export const getBookingById = async (bookingId, userId, role = 'USER') => {
+  const filter = { _id: bookingId };
+  if (role !== 'ADMIN' && userId) {
+    filter.userId = userId;
+  }
+  const booking = await Booking.findOne(filter);
   if (!booking) throw new NotFoundError('Booking not found');
 
-  const bookingJson = booking.toJSON();
+  const bookingJson = booking.toJSON ? booking.toJSON() : { ...booking };
   try {
     bookingJson.show = await showService.getShowById(booking.showId);
-  } catch {}
+  } catch (e) {
+    console.error('[Booking] Show populate warning:', e.message);
+  }
 
   return bookingJson;
 };
 
 export const getUserBookings = async (userId) => {
-  const bookings = await Booking.findAll({
-    where: { userId },
-    order: [['createdAt', 'DESC']],
-    include: [{
-      model: Show,
-      as: 'show',
-      include: ['movie', 'theatre']
-    }]
-  });
-  return bookings;
+  return Booking.find({ userId })
+    .sort({ createdAt: -1 })
+    .populate({
+      path: 'showId',
+      populate: [
+        { path: 'movieId' },
+        { path: 'theatreId' },
+      ],
+    });
 };
 
 export const getAllBookings = async (filters = {}) => {
-  const where = {};
-  if (filters.status) where.status = filters.status;
-  return Booking.findAll({
-    where,
-    order: [['createdAt', 'DESC']],
-    limit: 200,
-  });
+  const query = {};
+  if (filters.status) query.status = filters.status;
+  return Booking.find(query).sort({ createdAt: -1 }).limit(200);
 };
 
 export default {

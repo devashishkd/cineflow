@@ -1,50 +1,43 @@
-import { DataTypes } from 'sequelize';
-import sequelize from '../../config/db.js';
-import Show from './show.model.js';
+import mongoose from 'mongoose';
 
-const Seat = sequelize.define(
-  'Seat',
+const seatSchema = new mongoose.Schema(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
     showId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      references: {
-        model: Show,
-        key: 'id',
-      },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Show',
+      required: true,
     },
     seatNumber: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
     },
     row: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
     },
     status: {
-      type: DataTypes.ENUM('AVAILABLE', 'LOCKED', 'BOOKED'),
-      defaultValue: 'AVAILABLE',
+      type: String,
+      enum: ['AVAILABLE', 'LOCKED', 'BOOKED'],
+      default: 'AVAILABLE',
     },
   },
   {
     timestamps: true,
-    tableName: 'seats',
-    indexes: [
-      {
-        unique: true,
-        fields: ['showId', 'seatNumber'],
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret) => {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
       },
-    ],
+    },
   }
 );
 
-// Associations
-Seat.belongsTo(Show, { foreignKey: 'showId', as: 'show' });
-Show.hasMany(Seat, { foreignKey: 'showId', as: 'seats' });
+// Compound unique index: one seat number per show
+seatSchema.index({ showId: 1, seatNumber: 1 }, { unique: true });
+
+const Seat = mongoose.model('Seat', seatSchema);
 
 export default Seat;

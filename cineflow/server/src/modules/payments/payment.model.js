@@ -1,53 +1,43 @@
-import { DataTypes } from 'sequelize';
-import sequelize from '../../config/db.js';
-import Booking from '../bookings/booking.model.js';
-import User from '../auth/user.model.js';
+import mongoose from 'mongoose';
 
-const Payment = sequelize.define(
-  'Payment',
+const paymentSchema = new mongoose.Schema(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
     bookingId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      references: { model: Booking, key: 'id' },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Booking',
+      required: true,
     },
     userId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      references: { model: User, key: 'id' },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
     },
     amount: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
+      type: Number,
+      required: true,
     },
     status: {
-      type: DataTypes.ENUM('PENDING', 'COMPLETED', 'FAILED'),
-      defaultValue: 'PENDING',
+      type: String,
+      enum: ['PENDING', 'COMPLETED', 'FAILED'],
+      default: 'PENDING',
     },
-    transactionId: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    failureReason: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
+    transactionId: { type: String, default: null },
+    failureReason:  { type: String, default: null },
   },
   {
     timestamps: true,
-    tableName: 'payments',
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret) => {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
   }
 );
 
-Payment.belongsTo(Booking, { foreignKey: 'bookingId', as: 'booking' });
-Booking.hasMany(Payment, { foreignKey: 'bookingId', as: 'payments' });
-
-Payment.belongsTo(User, { foreignKey: 'userId', as: 'user' });
-User.hasMany(Payment, { foreignKey: 'userId', as: 'payments' });
+const Payment = mongoose.model('Payment', paymentSchema);
 
 export default Payment;

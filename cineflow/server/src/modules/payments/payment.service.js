@@ -2,7 +2,7 @@ import Payment from './payment.model.js';
 import paymentGateway from './razorpay.gateway.js';
 
 export const createOrder = async ({ bookingId, userId, amount, currency = 'INR' }) => {
-  let payment = await Payment.findOne({ where: { bookingId } });
+  let payment = await Payment.findOne({ bookingId });
   if (!payment) {
     payment = await Payment.create({ bookingId, userId, amount, status: 'PENDING' });
   }
@@ -23,7 +23,7 @@ export const verifySignature = async ({ razorpay_order_id, razorpay_payment_id, 
     signature: razorpay_signature,
   });
 
-  const payment = await Payment.findOne({ where: { transactionId: razorpay_order_id } });
+  const payment = await Payment.findOne({ transactionId: razorpay_order_id });
 
   if (isValid && payment) {
     payment.status = 'COMPLETED';

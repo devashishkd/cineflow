@@ -2,7 +2,7 @@
  * env.js — Validates required environment variables at startup.
  */
 
-const REQUIRED = ['DATABASE_URL', 'JWT_SECRET'];
+const REQUIRED = ['MONGODB_URI', 'JWT_SECRET'];
 
 const OPTIONAL_WITH_WARNINGS = [
   { key: 'REDIS_URL',            warn: 'Rate limiting and caching will be disabled.' },
@@ -33,7 +33,7 @@ export const validateEnv = () => {
 };
 
 export default {
-  DATABASE_URL: process.env.DATABASE_URL,
+  MONGODB_URI: process.env.MONGODB_URI,
   NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: process.env.PORT || 3000,
 };

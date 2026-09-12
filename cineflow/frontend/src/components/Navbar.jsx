@@ -17,6 +17,13 @@ const Navbar = () => {
   const cityDropdownRef = useRef(null);
   const searchRef = useRef(null);
 
+  // Auto-open city modal if no city is selected
+  useEffect(() => {
+    if (!selectedCity) {
+      setIsCityModalOpen(true);
+    }
+  }, [selectedCity]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {

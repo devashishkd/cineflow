@@ -1,60 +1,54 @@
-import { DataTypes } from 'sequelize';
-import sequelize from '../../config/db.js';
-import Movie from '../movies/movie.model.js';
-import Theatre from '../theatres/theatre.model.js';
+import mongoose from 'mongoose';
 
-const Show = sequelize.define(
-  'Show',
+const showSchema = new mongoose.Schema(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
     movieId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      references: {
-        model: Movie,
-        key: 'id',
-      },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Movie',
+      required: true,
     },
     theatreId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      references: {
-        model: Theatre,
-        key: 'id',
-      },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Theatre',
+      required: true,
     },
     showDate: {
-      type: DataTypes.DATEONLY, // YYYY-MM-DD
-      allowNull: false,
+      type: String, // YYYY-MM-DD
+      required: true,
     },
     showTime: {
-      type: DataTypes.TIME, // HH:MM:SS
-      allowNull: false,
+      type: String, // HH:MM
+      required: true,
     },
     price: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
+      type: Number,
+      required: true,
     },
     totalSeats: {
-      type: DataTypes.INTEGER,
-      defaultValue: 50,
+      type: Number,
+      default: 50,
     },
   },
   {
     timestamps: true,
-    tableName: 'shows',
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret) => {
+        ret.id = ret._id;
+        if (ret.theatreId && typeof ret.theatreId === 'object') {
+          ret.theatre = ret.theatreId;
+        }
+        if (ret.movieId && typeof ret.movieId === 'object') {
+          ret.movie = ret.movieId;
+        }
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
   }
 );
 
-// Define associations
-Show.belongsTo(Movie, { foreignKey: 'movieId', as: 'movie' });
-Movie.hasMany(Show, { foreignKey: 'movieId', as: 'shows' });
-
-Show.belongsTo(Theatre, { foreignKey: 'theatreId', as: 'theatre' });
-Theatre.hasMany(Show, { foreignKey: 'theatreId', as: 'shows' });
+const Show = mongoose.model('Show', showSchema);
 
 export default Show;

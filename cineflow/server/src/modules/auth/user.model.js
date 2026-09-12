@@ -1,87 +1,66 @@
+import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { DataTypes } from 'sequelize';
-import sequelize from '../../config/db.js';
 
 /**
- * User Model (Sequelize / PostgreSQL)
+ * User Model (Mongoose / MongoDB)
  *
- * Interview talking points:
  * - role is embedded in JWT at login time for performance.
- * - passwordHash is excluded by default in scopes and custom toJSON.
- * - email uniqueness is enforced at the DB level (UNIQUE constraint).
+ * - passwordHash is excluded by default via select: false.
+ * - email uniqueness is enforced at the DB level (unique index).
  */
-const User = sequelize.define(
-  'User',
+const userSchema = new mongoose.Schema(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
     name: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-      },
+      type: String,
+      required: [true, 'Name is required'],
+      trim: true,
     },
     email: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: [true, 'Email is required'],
       unique: true,
-      validate: {
-        isEmail: true,
-      },
+      lowercase: true,
+      trim: true,
     },
     passwordHash: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    password: {
-      type: DataTypes.VIRTUAL,
+      type: String,
+      required: true,
+      select: false, // excluded by default; use .select('+passwordHash') to include
     },
     role: {
-      type: DataTypes.ENUM('USER', 'ADMIN', 'THEATRE_MANAGER'),
-      defaultValue: 'USER',
+      type: String,
+      enum: ['USER', 'ADMIN', 'THEATRE_MANAGER'],
+      default: 'USER',
     },
     phone: {
-      type: DataTypes.STRING,
-      allowNull: true,
+      type: String,
+      default: null,
     },
   },
   {
     timestamps: true,
-    tableName: 'users',
-    defaultScope: {
-      attributes: { exclude: ['passwordHash'] },
-    },
-    scopes: {
-      withPassword: {
-        attributes: {},
-      },
-    },
-    hooks: {
-      beforeCreate: async (user) => {
-        if (user.password) {
-          user.passwordHash = await bcrypt.hash(user.password, 10);
-          delete user.password;
-        }
-      },
-      beforeUpdate: async (user) => {
-        if (user.changed('password')) {
-          user.passwordHash = await bcrypt.hash(user.password, 10);
-          delete user.password;
-        }
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret) => {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        delete ret.passwordHash;
+        return ret;
       },
     },
   }
 );
 
-// Add custom toJSON method to match MongoDB behavior where we remove passwordHash
-User.prototype.toJSON = function () {
-  const values = Object.assign({}, this.get());
-  delete values.passwordHash;
-  return values;
-};
+// Pre-save hook: hash password before persisting
+userSchema.pre('save', async function () {
+  if (!this.isModified('passwordHash')) return;
+  // If a plain password was set directly on passwordHash field, hash it
+  if (this.passwordHash && !this.passwordHash.startsWith('$2')) {
+    this.passwordHash = await bcrypt.hash(this.passwordHash, 10);
+  }
+});
+
+const User = mongoose.model('User', userSchema);
 
 export default User;

@@ -61,7 +61,8 @@ const MovieDetail = () => {
 
   // Group shows by theatre
   const showsByTheatre = showsForDate.reduce((acc, show) => {
-    const theatreName = show.theatre?.name || 'Unknown Theatre';
+    const theatreObj = show.theatre || show.theatreId;
+    const theatreName = theatreObj?.name || 'Unknown Theatre';
     if (!acc[theatreName]) acc[theatreName] = [];
     acc[theatreName].push(show);
     return acc;
@@ -182,33 +183,44 @@ const MovieDetail = () => {
         </div>
       ) : (
         <div className="space-y-4 mb-16">
-          {Object.entries(showsByTheatre).map(([theatreName, theatreShows]) => (
-            <div key={theatreName} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-              <div className="px-6 py-3.5 border-b border-zinc-800 flex items-center gap-2 bg-zinc-950">
-                <MapPin className="w-4 h-4 text-zinc-400" />
-                <h3 className="text-sm font-semibold text-white">{theatreName}</h3>
-                {theatreShows[0]?.theatre?.city && (
-                  <span className="text-xs text-zinc-500 ml-1">· {theatreShows[0].theatre.city}</span>
-                )}
+          {Object.entries(showsByTheatre).map(([theatreName, theatreShows]) => {
+            const theatreCity = theatreShows[0]?.theatre?.city || theatreShows[0]?.theatreId?.city;
+            return (
+              <div key={theatreName} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                <div className="px-6 py-3.5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-zinc-400" />
+                    <h3 className="text-sm font-semibold text-white">{theatreName}</h3>
+                    {theatreCity && (
+                      <span className="text-xs text-zinc-400 ml-1">· {theatreCity}</span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-zinc-500 font-medium">
+                    {theatreShows.length} {theatreShows.length === 1 ? 'Show' : 'Shows'} Available
+                  </span>
+                </div>
+                <div className="p-5 flex flex-wrap gap-3">
+                  {theatreShows.map(show => {
+                    const showId = show.id || show._id;
+                    return (
+                      <Link
+                        key={showId}
+                        to={`/show/${showId}/seats`}
+                        className="group flex flex-col items-center px-4 py-2.5 rounded-lg border border-zinc-800 bg-zinc-950 hover:border-emerald-500/50 hover:bg-zinc-900 transition-all shadow-sm"
+                      >
+                        <span className="text-sm font-bold text-zinc-100 group-hover:text-white">
+                          {show.showTime?.slice(0, 5)}
+                        </span>
+                        <span className="text-xs font-semibold text-emerald-400 mt-1 flex items-center">
+                          ₹{show.price}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="p-5 flex flex-wrap gap-2.5">
-                {theatreShows.map(show => (
-                  <Link
-                    key={show.id}
-                    to={`/show/${show.id}/seats`}
-                    className="group flex flex-col items-center px-4 py-2.5 rounded-lg border border-zinc-800 bg-zinc-950 hover:border-zinc-600 hover:bg-zinc-800/80 transition-all"
-                  >
-                    <span className="text-sm font-bold text-zinc-100 group-hover:text-white">
-                      {show.showTime?.slice(0, 5)}
-                    </span>
-                    <span className="text-[11px] text-zinc-400 mt-0.5">
-                      ₹{show.price}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
