@@ -10,7 +10,19 @@ import logger from '../../utils/logger.js';
 const redisUrl = getRedisConnectionUrl();
 const connection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
+  retryStrategy(times) {
+    if (times > 3 && (redisUrl.includes('localhost') || redisUrl.includes('127.0.0.1'))) {
+      return null;
+    }
+    return Math.min(times * 1000, 5000);
+  },
+  lazyConnect: true,
   ...(redisUrl.startsWith('rediss://') && { tls: {} }),
+});
+connection.on('error', (err) => {
+  if (err.code !== 'ECONNREFUSED') {
+    logger.error(`[Notification Queue] Redis error: ${err.message}`);
+  }
 });
 
 export const notificationQueue = new Queue('notifications', { connection });

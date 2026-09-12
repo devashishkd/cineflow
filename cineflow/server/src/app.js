@@ -50,14 +50,19 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/auth',     authRoutes);
-app.use('/api/movies',   movieRoutes);
-app.use('/api/theatres', theatreRoutes);
-app.use('/api/shows',    showRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/admin',    adminRoutes);
+// ─── API Routes (support both /api prefix and root for frontend compatibility) ───
+const mountRoutes = (prefix) => {
+  app.use(`${prefix}/auth`,     authRoutes);
+  app.use(`${prefix}/movies`,   movieRoutes);
+  app.use(`${prefix}/theatres`, theatreRoutes);
+  app.use(`${prefix}/shows`,    showRoutes);
+  app.use(`${prefix}/bookings`, bookingRoutes);
+  app.use(`${prefix}/payments`, paymentRoutes);
+  app.use(`${prefix}/admin`,    adminRoutes);
+};
+
+mountRoutes('/api');
+mountRoutes('');
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
